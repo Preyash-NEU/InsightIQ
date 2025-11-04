@@ -1,39 +1,41 @@
 from pydantic_settings import BaseSettings
-from functools import lru_cache
+from pathlib import Path
+import os
+
+# Get the backend directory (where .env is located)
+# This file is at: backend/app/core/config.py
+# We need to go up 2 levels to reach: backend/
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+
 
 class Settings(BaseSettings):
-    # App
-    PROJECT_NAME: str = "InsightIQ"
-    VERSION: str = "1.0.0"
-    API_V1_STR: str = "/api/v1"
+    # Database
+    DATABASE_URL: str
     
     # Security
     SECRET_KEY: str
     ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
+    ACCESS_TOKEN_EXPIRE_DAYS: int = 7
     
-    # Database
-    DATABASE_URL: str
+    # CORS
+    ALLOWED_ORIGINS: str = "http://localhost:3000"
     
-    # Redis
-    REDIS_URL: str = "redis://localhost:6379"
-    
-    # LLM
-    LLM_PROVIDER: str = "openai"  # openai | anthropic | ollama
+    # AI Provider (optional for now)
+    AI_PROVIDER: str = "openai"
     OPENAI_API_KEY: str = ""
     ANTHROPIC_API_KEY: str = ""
     
-    # File Upload
-    UPLOAD_DIR: str = "./uploads"
-    MAX_UPLOAD_SIZE: int = 50 * 1024 * 1024  # 50MB
-    
-    # CORS
-    BACKEND_CORS_ORIGINS: list = ["http://localhost:3000"]
-    
     class Config:
-        env_file = ".env"
-        case_sensitive = True
+        # Point to .env file in backend/ directory
+        env_file = os.path.join(BASE_DIR, ".env")
+        env_file_encoding = "utf-8"
+        case_sensitive = False
 
-@lru_cache()
-def get_settings():
-    return Settings()
+
+# Create settings instance
+settings = Settings()
+
+# Debug: Print to verify it's loading (remove after testing)
+if __name__ == "__main__":
+    print(f"Loading .env from: {os.path.join(BASE_DIR, '.env')}")
+    print(f"DATABASE_URL: {settings.DATABASE_URL}")
