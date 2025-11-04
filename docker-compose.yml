@@ -1,48 +1,75 @@
-version: '3.8'
+version: '3.9'
 
 services:
   postgres:
-    image: postgres:15-alpine
+    image: postgres:16
+    container_name: insightiq-postgres
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: testuser
+      POSTGRES_PASSWORD: testpass123
       POSTGRES_DB: insightiq
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U insight -d insightiq"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
 
   redis:
     image: redis:7-alpine
+    container_name: insightiq-redis
     ports:
       - "6379:6379"
+    restart: unless-stopped
 
-  backend:
-    build: ./backend
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-    volumes:
-      - ./backend:/app
-    ports:
-      - "8000:8000"
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: insightiq-pgadmin
     environment:
-      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/insightiq
-      - REDIS_URL=redis://redis:6379
+      PGADMIN_DEFAULT_EMAIL: admin@insightiq.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
     depends_on:
       - postgres
-      - redis
+    restart: unless-stopped
 
-  frontend:
-    build: ./frontend
-    command: npm run dev
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
-    ports:
-      - "3000:3000"
-    environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
-    depends_on:
-      - backend
+  # Backend - Commented out until Dockerfile is ready
+  # backend:
+  #   build: ./apps/backend
+  #   command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+  #   volumes:
+  #     - ./apps/backend:/app
+  #   ports:
+  #     - "8000:8000"
+  #   environment:
+  #     - DATABASE_URL=postgresql+psycopg://insight:insight@postgres:5432/insightiq
+  #     - REDIS_URL=redis://redis:6379
+  #     - SECRET_KEY=your-secret-key-here
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #     redis:
+  #       condition: service_started
+
+  # Frontend - Commented out until Dockerfile is ready
+  # frontend:
+  #   build: ./apps/frontend
+  #   command: npm run dev
+  #   volumes:
+  #     - ./apps/frontend:/app
+  #     - /app/node_modules
+  #   ports:
+  #     - "3000:3000"
+  #   environment:
+  #     - NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
+  #   depends_on:
+  #     - backend
 
 volumes:
   postgres_data:
+    driver: local
