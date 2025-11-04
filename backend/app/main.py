@@ -1,35 +1,32 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.core.config import get_settings
-from app.api.v1 import auth, datasets, queries, insights
 
-settings = get_settings()
+from app.core.config import settings
+from app.api.v1 import auth, datasets
 
 app = FastAPI(
-    title=settings.PROJECT_NAME,
-    version=settings.VERSION,
-    openapi_url=f"{settings.API_V1_STR}/openapi.json"
+    title="InsightIQ API",
+    description="AI-powered analytics dashboard API",
+    version="1.0.0"
 )
 
-# CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.BACKEND_CORS_ORIGINS,
+    allow_origins=settings.ALLOWED_ORIGINS.split(","),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Include routers
-app.include_router(auth.router, prefix=f"{settings.API_V1_STR}/auth", tags=["auth"])
-app.include_router(datasets.router, prefix=f"{settings.API_V1_STR}/datasets", tags=["datasets"])
-app.include_router(queries.router, prefix=f"{settings.API_V1_STR}/queries", tags=["queries"])
-app.include_router(insights.router, prefix=f"{settings.API_V1_STR}/insights", tags=["insights"])
+app.include_router(auth.router, prefix="/api/v1/auth", tags=["Authentication"])
+app.include_router(datasets.router, prefix="/api/v1/datasets", tags=["Datasets"])
+
 
 @app.get("/")
-def read_root():
-    return {"message": "InsightIQ API", "version": settings.VERSION}
+async def root():
+    return {"message": "InsightIQ API", "status": "running"}
+
 
 @app.get("/health")
-def health_check():
+async def health():
     return {"status": "healthy"}
