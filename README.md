@@ -159,8 +159,3 @@ What is incomplete / recommended next steps:
 
 ## Contributors
 - [Preyash Mehta](https://www.linkedin.com/in/preyash-mehta/) - Project Lead
-
----
-
-## License
-This project is licensed under the [MIT License](link-to-license-file).
