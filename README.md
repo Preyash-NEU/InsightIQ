@@ -4,7 +4,7 @@ InsightIQ is an AI-assisted data analysis web application. It consists of a Fast
 
 ---
 
-## Repository layout (important paths)
+## Repository layout (Important paths)
 
 - `backend/` — Python FastAPI backend
   - `app/main.py` — FastAPI application entry (routers, CORS, basic health endpoints)
@@ -157,10 +157,10 @@ What is incomplete / recommended next steps:
 
 ---
 
-If you'd like, I can:
-- Add a sample `backend/.env.example` with required variables
-- Create an Alembic migration and baseline migration file
-- Add Dockerfiles for backend and frontend and enable them in `docker-compose.yml`
-- Generate a concise developer quickstart script (PowerShell) to boot the stack locally
+## Contributors
+- [Preyash Mehta](https://www.linkedin.com/in/preyash-mehta/) - Project Lead
 
-Tell me which of the above you'd like next and I'll implement it.
+---
+
+## License
+This project is licensed under the [MIT License](link-to-license-file).
