@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   BarChart3,
   Home,
@@ -14,6 +14,7 @@ import {
   X,
 } from "lucide-react";
 
+import { useUser } from "@/app/providers";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -60,14 +61,25 @@ interface AppShellProps {
 
 export function AppShell({ children }: AppShellProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const [mode, setMode] = useThemePreference();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { user, setUser, refresh } = useUser();
 
   useEffect(() => {
     setSidebarOpen(false);
   }, [pathname]);
 
   const themeToggleIcon = mode === "dark" ? SunMedium : MoonStar;
+
+  const handleLogout = useCallback(async () => {
+    await fetch("/api/auth/logout", {
+      method: "POST",
+    });
+    setUser(null);
+    await refresh();
+    router.replace("/login");
+  }, [refresh, router, setUser]);
 
   const sidebarContent = useMemo(
     () => (
@@ -208,9 +220,25 @@ export function AppShell({ children }: AppShellProps) {
                   <MoonStar className="h-5 w-5" />
                 )}
               </Button>
-              <Button variant="primary" size="sm">
-                Invite team
-              </Button>
+              <div className="flex items-center gap-3">
+                {user ? (
+                  <div className="hidden text-right text-xs leading-tight md:block">
+                    <p className="font-medium text-[var(--color-foreground)]">
+                      {user.name ?? user.email}
+                    </p>
+                    <p className="text-[var(--color-muted-foreground)]">{user.email}</p>
+                  </div>
+                ) : null}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    void handleLogout();
+                  }}
+                >
+                  Sign out
+                </Button>
+              </div>
             </div>
           </div>
         </header>
