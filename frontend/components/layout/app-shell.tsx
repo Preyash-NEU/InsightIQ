@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   BarChart3,
+  Database,
   Home,
   Menu,
   MoonStar,
@@ -22,6 +23,7 @@ const mainNavigation = [
   { href: "/", label: "Overview", icon: Home },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/customers", label: "Customers", icon: Users2 },
+  { href: "/datasets", label: "Datasets", icon: Database },
 ];
 
 const secondaryNavigation = [
@@ -90,7 +92,9 @@ export function AppShell({ children }: AppShellProps) {
           </p>
           <ul className="mt-3 space-y-1">
             {mainNavigation.map((item) => {
-              const isActive = pathname === item.href;
+              const isActive =
+                pathname === item.href ||
+                (item.href !== "/" && pathname.startsWith(`${item.href}/`));
               const Icon = item.icon;
 
               return (
