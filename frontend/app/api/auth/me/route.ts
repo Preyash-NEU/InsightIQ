@@ -6,8 +6,7 @@ import { fetchCurrentUser } from "@/lib/api-client";
 import { AUTH_COOKIE } from "../login/route";
 
 export async function GET() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get(AUTH_COOKIE)?.value;
+  const token = cookies().get(AUTH_COOKIE)?.value;
 
   if (!token) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
