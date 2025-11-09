@@ -140,7 +140,10 @@ export default function LoginPage() {
 
       <p className="text-center text-sm text-[var(--color-muted-foreground)]">
         Don&apos;t have an account? {" "}
-        <Link href="/register" className="text-[var(--color-accent)] hover:text-[var(--color-accent-emphasis)]">
+        <Link
+          href="/auth/register"
+          className="text-[var(--color-accent)] hover:text-[var(--color-accent-emphasis)]"
+        >
           Create one
         </Link>
       </p>
