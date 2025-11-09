@@ -9,6 +9,8 @@ import {
   useState,
 } from "react";
 
+import { ToastProvider } from "@/components/ui/toast";
+
 export type AuthenticatedUser = {
   id: string;
   email: string;
@@ -78,5 +80,9 @@ export function useUser() {
 }
 
 export default function Providers({ children }: { children: React.ReactNode }) {
-  return <UserProvider>{children}</UserProvider>;
+  return (
+    <UserProvider>
+      <ToastProvider>{children}</ToastProvider>
+    </UserProvider>
+  );
 }

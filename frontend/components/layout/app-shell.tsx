@@ -20,14 +20,14 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const mainNavigation = [
-  { href: "/", label: "Overview", icon: Home },
-  { href: "/analytics", label: "Analytics", icon: BarChart3 },
-  { href: "/customers", label: "Customers", icon: Users2 },
-  { href: "/datasets", label: "Datasets", icon: Database },
+  { href: "/dashboard", label: "Overview", icon: Home },
+  { href: "/dashboard/analytics", label: "Analytics", icon: BarChart3 },
+  { href: "/dashboard/customers", label: "Customers", icon: Users2 },
+  { href: "/dashboard/datasets", label: "Datasets", icon: Database },
 ];
 
 const secondaryNavigation = [
-  { href: "/settings", label: "Settings", icon: Settings },
+  { href: "/dashboard/settings", label: "Settings", icon: Settings },
 ];
 
 type ThemeMode = "light" | "dark";
@@ -83,6 +83,8 @@ export function AppShell({ children }: AppShellProps) {
     router.replace("/login");
   }, [refresh, router, setUser]);
 
+  const sidebarId = "app-shell-sidebar-mobile";
+
   const sidebarContent = useMemo(
     () => (
       <nav className="flex flex-1 flex-col gap-8">
@@ -101,14 +103,15 @@ export function AppShell({ children }: AppShellProps) {
                 <li key={item.href}>
                   <Link
                     href={item.href}
+                    aria-current={isActive ? "page" : undefined}
                     className={cn(
-                      "group flex items-center gap-3 rounded-[var(--radius-md)] px-3 py-2 text-sm font-medium transition-all",
+                      "group flex items-center gap-3 rounded-[var(--radius-md)] px-3 py-2 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-sidebar)]",
                       isActive
                         ? "bg-[var(--color-accent)] text-[var(--color-accent-foreground,#ffffff)] shadow-sm"
                         : "text-[var(--color-muted-foreground)] hover:bg-[color-mix(in srgb,var(--color-accent-soft) 65%,transparent)] hover:text-[var(--color-foreground)]",
                     )}
                   >
-                    <Icon className="h-4 w-4" />
+                    <Icon className="h-4 w-4" aria-hidden />
                     {item.label}
                   </Link>
                 </li>
@@ -129,14 +132,15 @@ export function AppShell({ children }: AppShellProps) {
                 <li key={item.href}>
                   <Link
                     href={item.href}
+                    aria-current={isActive ? "page" : undefined}
                     className={cn(
-                      "group flex items-center gap-3 rounded-[var(--radius-md)] px-3 py-2 text-sm font-medium transition-all",
+                      "group flex items-center gap-3 rounded-[var(--radius-md)] px-3 py-2 text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-sidebar)]",
                       isActive
                         ? "bg-[var(--color-accent)] text-[var(--color-accent-foreground,#ffffff)] shadow-sm"
                         : "text-[var(--color-muted-foreground)] hover:bg-[color-mix(in srgb,var(--color-accent-soft) 65%,transparent)] hover:text-[var(--color-foreground)]",
                     )}
                   >
-                    <Icon className="h-4 w-4" />
+                    <Icon className="h-4 w-4" aria-hidden />
                     {item.label}
                   </Link>
                 </li>
@@ -168,9 +172,18 @@ export function AppShell({ children }: AppShellProps) {
             data-sidebar-overlay
             onClick={() => setSidebarOpen(false)}
           />
-          <div className="relative ml-0 flex w-72 flex-col border-r border-[var(--color-border)] bg-[var(--color-sidebar)] px-4 py-6 text-[var(--color-sidebar-foreground)] shadow-2xl">
+          <div
+            id={sidebarId}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="mobile-sidebar-title"
+            className="relative ml-0 flex w-72 flex-col border-r border-[var(--color-border)] bg-[var(--color-sidebar)] px-4 py-6 text-[var(--color-sidebar-foreground)] shadow-2xl"
+          >
             <div className="flex items-center justify-between px-2">
-              <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.22em]">
+              <div
+                id="mobile-sidebar-title"
+                className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.22em]"
+              >
                 <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[var(--color-accent)] text-[var(--color-accent-foreground,#ffffff)]">
                   IQ
                 </span>
@@ -200,6 +213,8 @@ export function AppShell({ children }: AppShellProps) {
                 size="icon"
                 className="md:hidden"
                 aria-label="Open navigation"
+                aria-expanded={sidebarOpen}
+                aria-controls={sidebarId}
                 onClick={() => setSidebarOpen(true)}
               >
                 <Menu className="h-5 w-5" />
@@ -216,6 +231,7 @@ export function AppShell({ children }: AppShellProps) {
                 variant="ghost"
                 size="icon"
                 aria-label="Toggle theme"
+                aria-pressed={mode === "dark"}
                 onClick={() => setMode(mode === "light" ? "dark" : "light")}
               >
                 {themeToggleIcon === SunMedium ? (
