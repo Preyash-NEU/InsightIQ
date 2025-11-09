@@ -183,7 +183,10 @@ export default function RegisterPage() {
 
       <p className="text-center text-sm text-[var(--color-muted-foreground)]">
         Already have an account? {" "}
-        <Link href="/login" className="text-[var(--color-accent)] hover:text-[var(--color-accent-emphasis)]">
+        <Link
+          href="/auth/login"
+          className="text-[var(--color-accent)] hover:text-[var(--color-accent-emphasis)]"
+        >
           Sign in
         </Link>
       </p>
