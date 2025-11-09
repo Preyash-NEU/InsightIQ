@@ -45,6 +45,7 @@ export const queriesApi = {
 };
 
 export const insightsApi = {
+  list: (datasetId: string) => api.get(`/insights/${datasetId}`),
   generate: (datasetId: string) =>
     api.post('/insights/generate', { dataset_id: datasetId }),
 };
