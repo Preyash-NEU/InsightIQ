@@ -1,0 +1,89 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: insightiq_postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-insightiq_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-insightiq_password}
+      POSTGRES_DB: ${POSTGRES_DB:-insightiq_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - insightiq_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U insightiq_user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: insightiq_redis
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - insightiq_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: insightiq_backend
+    environment:
+      DATABASE_URL: postgresql://insightiq_user:insightiq_password@postgres:5432/insightiq_db
+      REDIS_URL: redis://redis:6379/0
+      POSTGRES_HOST: postgres
+      REDIS_HOST: redis
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+      - backend_storage:/app/storage
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - insightiq_network
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  # pgAdmin (Database Management UI)
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: insightiq_pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@insightiq.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    networks:
+      - insightiq_network
+    depends_on:
+      - postgres
+
+networks:
+  insightiq_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  backend_storage:
+  pgadmin_data:
