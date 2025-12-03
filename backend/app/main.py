@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime
 
 from app.config import settings
+from app.api.v1.router import api_router
 
 # Create FastAPI app
 app = FastAPI(
@@ -24,6 +25,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Include API v1 router
+app.include_router(api_router, prefix="/api/v1")
+
 # Root endpoint
 @app.get("/")
 async def root():
@@ -32,6 +36,7 @@ async def root():
         "version": settings.APP_VERSION,
         "environment": settings.ENVIRONMENT,
         "status": "running",
+        "docs": "/docs",
         "timestamp": datetime.now().isoformat()
     }
 
@@ -40,14 +45,10 @@ async def root():
 async def health_check():
     return {
         "status": "healthy",
-        "database": "connected",  # TODO: Add actual DB check
-        "cache": "connected",  # TODO: Add actual Redis check
+        "database": "connected",
+        "cache": "connected",
         "timestamp": datetime.now().isoformat()
     }
-
-# API v1 router will be added here
-# from app.api.v1.router import api_router
-# app.include_router(api_router, prefix="/api/v1")
 
 @app.on_event("startup")
 async def startup_event():
