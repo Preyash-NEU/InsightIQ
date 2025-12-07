@@ -19,6 +19,9 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
     REFRESH_TOKEN_EXPIRE_DAYS: int = 30
     
+    # Logging
+    LOG_LEVEL: str = "INFO" 
+    
     # Database
     DATABASE_URL: str
     POSTGRES_USER: str
