@@ -1,3 +1,6 @@
+import logging
+logger = logging.getLogger(__name__)
+
 import redis
 import hashlib
 import json
@@ -142,6 +145,9 @@ class QueryService:
         Returns:
             Query object with results
         """
+        
+        logger.info(f"User {user.id} executing query: {query_data.query_text}")
+        
         # Get data source
         data_source = DataSourceService.get_data_source(
             db, user, query_data.data_source_id
@@ -155,6 +161,7 @@ class QueryService:
         cached_result = QueryService._get_cached_result(cache_key)
         
         if cached_result:
+            logger.info(f"Returning cached result for query: {query_data.query_text[:50]}")
             # Return cached query result
             cached_query = Query(
                 id=UUID(cached_result["id"]),
@@ -169,6 +176,11 @@ class QueryService:
             )
             # Note: This is a cached result, not saved to DB
             return cached_query
+        
+        logger.info(
+            f"Query executed successfully in {execution_time:.2f}ms - "
+            f"User: {user.id}, DataSource: {data_source.id}"
+        )
         
         if data_source.type != "csv":
             raise HTTPException(
