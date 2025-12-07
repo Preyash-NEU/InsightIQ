@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, validator
 from typing import Optional
 from datetime import datetime
 from uuid import UUID
@@ -42,3 +42,30 @@ class UserPublic(BaseModel):
     
     class Config:
         from_attributes = True
+        
+class UserUpdate(BaseModel):
+    """Schema for updating user profile."""
+    full_name: Optional[str] = Field(None, min_length=2, max_length=100)
+    email: Optional[EmailStr] = None
+
+class PasswordChange(BaseModel):
+    """Schema for changing password."""
+    current_password: str = Field(..., min_length=1)
+    new_password: str = Field(..., min_length=8, max_length=100)
+    
+    @validator('new_password')
+    def validate_password_strength(cls, v):
+        if not any(c.isupper() for c in v):
+            raise ValueError('Password must contain at least one uppercase letter')
+        if not any(c.islower() for c in v):
+            raise ValueError('Password must contain at least one lowercase letter')
+        if not any(c.isdigit() for c in v):
+            raise ValueError('Password must contain at least one digit')
+        return v
+
+class UserStats(BaseModel):
+    """User statistics."""
+    total_queries: int
+    total_data_sources: int
+    storage_used_mb: float
+    member_since: datetime
