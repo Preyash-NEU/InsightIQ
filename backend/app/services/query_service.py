@@ -1,3 +1,11 @@
+import redis
+import hashlib
+import json
+from app.config import settings
+
+# Initialize Redis client
+redis_client = redis.Redis.from_url(settings.REDIS_URL, decode_responses=True)
+
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 from typing import List, Optional, Any, Dict
@@ -139,6 +147,29 @@ class QueryService:
             db, user, query_data.data_source_id
         )
         
+        # NEW: Check cache first
+        cache_key = QueryService._generate_cache_key(
+            data_source.id, 
+            query_data.query_text
+        )
+        cached_result = QueryService._get_cached_result(cache_key)
+        
+        if cached_result:
+            # Return cached query result
+            cached_query = Query(
+                id=UUID(cached_result["id"]),
+                user_id=user.id,
+                data_source_id=data_source.id,
+                query_text=query_data.query_text,
+                query_type="natural_language",
+                result_data=cached_result["result_data"],
+                execution_time_ms=cached_result["execution_time_ms"],
+                is_saved=False,
+                created_at=datetime.fromisoformat(cached_result["created_at"])
+            )
+            # Note: This is a cached result, not saved to DB
+            return cached_query
+        
         if data_source.type != "csv":
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -221,6 +252,15 @@ class QueryService:
         
         db.add(visualization)
         db.commit()
+        
+        # NEW: Cache the result
+        cache_data = {
+            "id": str(new_query.id),
+            "result_data": serialized_result,
+            "execution_time_ms": int(execution_time),
+            "created_at": new_query.created_at.isoformat()
+        }
+        QueryService._set_cached_result(cache_key, cache_data, ttl=300)  # 5 min cache
         
         # Add visualization to query response
         new_query.visualizations = [visualization]
@@ -341,3 +381,32 @@ class QueryService:
         db.delete(query)
         db.commit()
         return {"message": "Query deleted successfully"}
+    
+    @staticmethod
+    def _generate_cache_key(data_source_id: UUID, query_text: str) -> str:
+        """Generate a unique cache key for a query."""
+        combined = f"{data_source_id}:{query_text}"
+        return f"query_cache:{hashlib.md5(combined.encode()).hexdigest()}"
+    
+    @staticmethod
+    def _get_cached_result(cache_key: str) -> Optional[Dict[str, Any]]:
+        """Get cached query result from Redis."""
+        try:
+            cached = redis_client.get(cache_key)
+            if cached:
+                return json.loads(cached)
+        except Exception as e:
+            print(f"Redis get error: {e}")
+        return None
+    
+    @staticmethod
+    def _set_cached_result(cache_key: str, result: Dict[str, Any], ttl: int = 300) -> None:
+        """Cache query result in Redis with TTL (default 5 minutes)."""
+        try:
+            redis_client.setex(
+                cache_key,
+                ttl,
+                json.dumps(result, default=str)
+            )
+        except Exception as e:
+            print(f"Redis set error: {e}")
