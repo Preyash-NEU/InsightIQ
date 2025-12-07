@@ -342,24 +342,66 @@ class QueryService:
         return new_query
     
     @staticmethod
-    def get_queries(
+    def get_queries_filtered(
         db: Session,
         user: User,
         skip: int = 0,
         limit: int = 100,
         data_source_id: Optional[UUID] = None,
-        saved_only: bool = False
+        saved_only: bool = False,
+        query_type: Optional[str] = None,
+        search: Optional[str] = None,
+        sort_by: str = "created_at",
+        sort_order: str = "desc"
     ) -> List[Query]:
-        """Get queries for a user with optional filters."""
+        """
+        Get queries with advanced filtering and sorting.
+        
+        Args:
+            db: Database session
+            user: Current user
+            skip: Pagination offset
+            limit: Maximum results
+            data_source_id: Filter by data source
+            saved_only: Only saved queries
+            query_type: Filter by query type
+            search: Search in query text
+            sort_by: Field to sort by
+            sort_order: asc or desc
+            
+        Returns:
+            List of queries matching filters
+        """
+        # Start with base query
         query = db.query(Query).filter(Query.user_id == user.id)
         
+        # Apply filters
         if data_source_id:
             query = query.filter(Query.data_source_id == data_source_id)
         
         if saved_only:
             query = query.filter(Query.is_saved == True)
         
-        return query.order_by(Query.created_at.desc()).offset(skip).limit(limit).all()
+        if query_type:
+            query = query.filter(Query.query_type == query_type)
+        
+        if search:
+            # Case-insensitive search in query text
+            query = query.filter(Query.query_text.ilike(f"%{search}%"))
+        
+        # Apply sorting
+        if sort_by == "execution_time_ms":
+            sort_column = Query.execution_time_ms
+        else:  # default to created_at
+            sort_column = Query.created_at
+        
+        if sort_order == "asc":
+            query = query.order_by(sort_column.asc())
+        else:
+            query = query.order_by(sort_column.desc())
+        
+        # Apply pagination
+        return query.offset(skip).limit(limit).all()
     
     @staticmethod
     def get_query(db: Session, user: User, query_id: UUID) -> Query:

@@ -1,3 +1,7 @@
+from app.utils.validators import DataValidator
+import logging
+logger = logging.getLogger(__name__)
+
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status, UploadFile
 from typing import List, Optional
@@ -57,6 +61,14 @@ class DataSourceService:
             # Parse CSV with pandas
             df = pd.read_csv(pd.io.common.BytesIO(contents))
             
+            # Validate CSV structure
+            is_valid, issues = DataValidator.validate_csv_structure(df)
+            
+            if not is_valid:
+                logger.warning(f"CSV validation issues for file {file.filename}: {issues}")
+                # We still proceed but log the issues
+                # In strict mode, you could raise an error here
+            
         except pd.errors.EmptyDataError:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -73,18 +85,14 @@ class DataSourceService:
                 detail=f"Error reading CSV file: {str(e)}"
             )
         
-        # Extract metadata
+        # Extract metadata with enhanced type detection
         row_count = len(df)
-        columns_info = []
+        columns_info = DataValidator.infer_column_types(df)
         
-        for col in df.columns:
-            dtype = str(df[col].dtype)
-            columns_info.append({
-                "name": col,
-                "type": dtype,
-                "null_count": int(df[col].isnull().sum()),
-                "unique_count": int(df[col].nunique())
-            })
+        # Get data quality report
+        quality_report = DataValidator.get_data_quality_report(df)
+        
+        logger.info(f"Data quality report for {file.filename}: {quality_report}")
         
         # Create storage directory if it doesn't exist
         upload_dir = os.path.join(settings.UPLOAD_DIR, str(user.id))
@@ -110,7 +118,8 @@ class DataSourceService:
             file_path=file_path,
             row_count=row_count,
             file_size=file_size,
-            columns_info=columns_info
+            columns_info=columns_info,
+            connection_info=quality_report
         )
         
         db.add(new_data_source)

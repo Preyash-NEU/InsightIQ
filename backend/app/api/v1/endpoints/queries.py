@@ -64,18 +64,38 @@ async def get_queries(
     limit: int = 100,
     data_source_id: Optional[UUID] = None,
     saved_only: bool = False,
+    query_type: Optional[str] = QueryParam(None, description="Filter by query type: natural_language or direct"),
+    search: Optional[str] = QueryParam(None, description="Search in query text"),
+    sort_by: str = QueryParam("created_at", description="Sort by: created_at, execution_time_ms"),
+    sort_order: str = QueryParam("desc", description="Sort order: asc or desc"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
     """
-    Get all queries for the current user.
+    Get all queries for the current user with advanced filtering.
     
+    **Filters:**
     - **skip**: Number of records to skip (pagination)
     - **limit**: Maximum number of records to return
-    - **data_source_id**: Optional filter by data source
+    - **data_source_id**: Filter by specific data source
     - **saved_only**: Only return saved/favorite queries
+    - **query_type**: Filter by type (natural_language or direct)
+    - **search**: Search in query text (case-insensitive)
+    - **sort_by**: Sort field (created_at, execution_time_ms)
+    - **sort_order**: Sort direction (asc or desc)
     """
-    return QueryService.get_queries(db, current_user, skip, limit, data_source_id, saved_only)
+    return QueryService.get_queries_filtered(
+        db=db,
+        user=current_user,
+        skip=skip,
+        limit=limit,
+        data_source_id=data_source_id,
+        saved_only=saved_only,
+        query_type=query_type,
+        search=search,
+        sort_by=sort_by,
+        sort_order=sort_order
+    )
 
 
 @router.get("/{query_id}", response_model=Query)

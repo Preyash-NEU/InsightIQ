@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # PostgreSQL Database
   postgres:
@@ -87,4 +85,5 @@ volumes:
   postgres_data:
   redis_data:
   backend_storage:
+  backend_logs:
   pgadmin_data:
