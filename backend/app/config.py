@@ -48,6 +48,12 @@ class Settings(BaseSettings):
     ALLOWED_FILE_EXTENSIONS: str = ".csv,.xlsx,.json"
     UPLOAD_DIR: str = "/app/storage/uploads"
     
+    # OpenAI Settings
+    OPENAI_API_KEY: str
+    OPENAI_MODEL: str = "gpt-4-turbo-preview"
+    OPENAI_MAX_TOKENS: int = 2000
+    OPENAI_TEMPERATURE: float = 0.2
+    
     # CORS
     CORS_ORIGINS: str = "http://localhost:3000,http://localhost:5173"
     CORS_ALLOW_CREDENTIALS: bool = True
@@ -57,6 +63,7 @@ class Settings(BaseSettings):
     
     # Logging
     LOG_LEVEL: str = "INFO"
+    
     
     class Config:
         env_file = ".env"
