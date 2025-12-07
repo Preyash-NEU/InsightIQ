@@ -1,3 +1,6 @@
+import logging
+from app.core.logging_config import setup_logging
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime
@@ -52,10 +55,19 @@ async def health_check():
 
 @app.on_event("startup")
 async def startup_event():
-    print(f"🚀 {settings.APP_NAME} v{settings.APP_VERSION} starting...")
-    print(f"📝 Environment: {settings.ENVIRONMENT}")
-    print(f"📚 API Docs: http://localhost:{settings.PORT}/docs")
+    # Setup logging
+    setup_logging()
+    
+    logger = logging.getLogger(__name__)
+    logger.info("=" * 60)
+    logger.info(f"🚀 {settings.APP_NAME} v{settings.APP_VERSION} starting...")
+    logger.info(f"📝 Environment: {settings.ENVIRONMENT}")
+    logger.info(f"📚 API Docs: http://localhost:{settings.PORT}/docs")
+    logger.info("=" * 60)
 
 @app.on_event("shutdown")
 async def shutdown_event():
-    print(f"👋 {settings.APP_NAME} shutting down...")
+    logger = logging.getLogger(__name__)
+    logger.info("=" * 60)
+    logger.info(f"👋 {settings.APP_NAME} shutting down...")
+    logger.info("=" * 60)
