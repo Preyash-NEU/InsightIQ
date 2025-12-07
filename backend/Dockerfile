@@ -18,7 +18,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Create upload directory
-RUN mkdir -p /app/storage/uploads
+RUN mkdir -p /app/storage/uploads /app/logs
 
 # Expose port
 EXPOSE 8000
