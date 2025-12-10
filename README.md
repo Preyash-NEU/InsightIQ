@@ -654,8 +654,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 👨‍💻 Author
 
 **Your Name**
-- GitHub: [@yourusername](https://github.com/Preyash-NEU)
-- LinkedIn: [Your LinkedIn]([https://linkedin.com/in/yourprofile](https://www.linkedin.com/in/preyash-mehta/))
+- GitHub: [Preyash](https://github.com/Preyash-NEU)
+- LinkedIn: [Preyash Mehta](https://www.linkedin.com/in/preyash-mehta/)
 - Email: preyash.mehta.12@gmail.com
 
 ---
