@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query as QueryParam
+from fastapi import APIRouter, Depends, HTTPException, status, Query as QueryParam, Request
+from app.api.rate_limit_deps import query_rate_limit_dependency
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from uuid import UUID
@@ -16,7 +17,8 @@ router = APIRouter()
 async def natural_language_query(
     query_data: QueryCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_active_user),
+    rate_limit_info: dict = Depends(query_rate_limit_dependency)
 ):
     """
     Ask a question in natural language about your data.
@@ -39,7 +41,8 @@ async def natural_language_query(
 async def execute_direct_query(
     query_data: QueryExecute,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_active_user),
+    rate_limit_info: dict = Depends(query_rate_limit_dependency)
 ):
     """
     Execute pandas code directly on a data source.

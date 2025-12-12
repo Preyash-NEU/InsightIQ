@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from typing import Dict, Any, List
+from fastapi import Request, Response
 
 from app.db.session import get_db
 from app.models.user import User
@@ -84,3 +85,64 @@ async def get_insights(
     - Tips for better data analysis
     """
     return StatsService.get_insights(db, current_user)
+
+@router.get("/rate-limits")
+async def get_rate_limit_status(
+    request: Request,
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Get current rate limit status for the user.
+    
+    Shows remaining requests for all rate-limited endpoints.
+    """
+    from app.core.rate_limiter import rate_limiter
+    from app.config import settings
+    
+    identifier = rate_limiter.get_identifier(request, str(current_user.id))
+    
+    # Check status for different endpoints without incrementing
+    rate_limits = {
+        "authentication": {
+            "limit": settings.RATE_LIMIT_AUTH_LOGIN,
+            "window_seconds": settings.RATE_LIMIT_AUTH_WINDOW,
+            "endpoint": "auth"
+        },
+        "queries": {
+            "limit": settings.RATE_LIMIT_QUERIES,
+            "window_seconds": settings.RATE_LIMIT_QUERIES_WINDOW,
+            "endpoint": "queries"
+        },
+        "uploads": {
+            "limit": settings.RATE_LIMIT_UPLOADS,
+            "window_seconds": settings.RATE_LIMIT_UPLOADS_WINDOW,
+            "endpoint": "uploads"
+        },
+        "general": {
+            "limit": settings.RATE_LIMIT_GENERAL,
+            "window_seconds": settings.RATE_LIMIT_GENERAL_WINDOW,
+            "endpoint": "general"
+        }
+    }
+    
+    # Get current usage for each endpoint
+    status_info = {}
+    for category, config in rate_limits.items():
+        key = f"rate_limit:{config['endpoint']}:{identifier}"
+        current = rate_limiter.redis_client.get(key)
+        ttl = rate_limiter.redis_client.ttl(key) if current else config['window_seconds']
+        
+        current_count = int(current) if current else 0
+        
+        status_info[category] = {
+            "limit": config["limit"],
+            "used": current_count,
+            "remaining": max(0, config["limit"] - current_count),
+            "resets_in_seconds": ttl if ttl > 0 else config['window_seconds']
+        }
+    
+    return {
+        "user_id": str(current_user.id),
+        "rate_limits": status_info,
+        "rate_limiting_enabled": settings.RATE_LIMIT_ENABLED
+    }

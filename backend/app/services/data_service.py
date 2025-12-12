@@ -1,7 +1,7 @@
 from app.utils.validators import DataValidator
 import logging
 logger = logging.getLogger(__name__)
-
+from app.utils.file_parsers import FileParser
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status, UploadFile
 from typing import List, Optional
@@ -20,81 +20,73 @@ class DataSourceService:
     """Service for handling data source operations."""
     
     @staticmethod
-    async def upload_csv(
+    async def upload_file(
         db: Session,
         user: User,
         file: UploadFile,
-        name: Optional[str] = None
+        name: Optional[str] = None,
+        sheet_name: Optional[str] = None
     ) -> DataSource:
         """
-        Upload and process a CSV file.
+        Upload and process a data file (CSV, Excel, JSON, Parquet, etc.).
         
         Args:
             db: Database session
             user: Current user
-            file: Uploaded CSV file
+            file: Uploaded file
             name: Optional custom name for the data source
+            sheet_name: Optional Excel sheet name
             
         Returns:
             Created DataSource object
         """
-        # Validate file type
-        if not file.filename.endswith('.csv'):
+        # Get file type
+        file_type = FileParser.get_file_type(file.filename)
+        
+        if file_type not in FileParser.SUPPORTED_FORMATS:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Only CSV files are allowed"
+                detail=f"Unsupported file type. Supported: {', '.join(FileParser.SUPPORTED_FORMATS.keys())}"
             )
         
         # Read file content
         try:
             contents = await file.read()
             
-            # Check file size (max 100MB)
+            # Check file size
             file_size = len(contents)
-            max_size = settings.MAX_FILE_SIZE_MB * 1024 * 1024  # Convert to bytes
+            max_size = settings.MAX_FILE_SIZE_MB * 1024 * 1024
             if file_size > max_size:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail=f"File size exceeds maximum allowed size of {settings.MAX_FILE_SIZE_MB}MB"
                 )
             
-            # Parse CSV with pandas
-            df = pd.read_csv(pd.io.common.BytesIO(contents))
+            # Parse file with appropriate parser
+            df = FileParser.parse_file(file.filename, contents, sheet_name=sheet_name)
             
-            # Validate CSV structure
-            is_valid, issues = DataValidator.validate_csv_structure(df)
-            
-            if not is_valid:
-                logger.warning(f"CSV validation issues for file {file.filename}: {issues}")
-                # We still proceed but log the issues
-                # In strict mode, you could raise an error here
-            
-        except pd.errors.EmptyDataError:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="CSV file is empty"
-            )
-        except pd.errors.ParserError:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid CSV format"
-            )
+        except HTTPException:
+            raise
         except Exception as e:
+            logger.error(f"Error processing file {file.filename}: {str(e)}")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Error reading CSV file: {str(e)}"
+                detail=f"Error processing file: {str(e)}"
             )
+        
+        # Validate structure
+        is_valid, issues = DataValidator.validate_csv_structure(df)
+        if not is_valid:
+            logger.warning(f"File validation issues for {file.filename}: {issues}")
         
         # Extract metadata with enhanced type detection
         row_count = len(df)
         columns_info = DataValidator.infer_column_types(df)
-        
-        # Get data quality report
         quality_report = DataValidator.get_data_quality_report(df)
         
         logger.info(f"Data quality report for {file.filename}: {quality_report}")
         
-        # Create storage directory if it doesn't exist
+        # Create storage directory
         upload_dir = os.path.join(settings.UPLOAD_DIR, str(user.id))
         os.makedirs(upload_dir, exist_ok=True)
         
@@ -107,13 +99,25 @@ class DataSourceService:
         with open(file_path, 'wb') as f:
             f.write(contents)
         
+        # Determine data source type from file extension
+        type_mapping = {
+            '.csv': 'csv',
+            '.xlsx': 'excel',
+            '.xls': 'excel',
+            '.json': 'json',
+            '.parquet': 'parquet',
+            '.txt': 'tsv',
+            '.tsv': 'tsv'
+        }
+        source_type = type_mapping.get(file_type, 'file')
+        
         # Create database record
-        data_source_name = name or file.filename.replace('.csv', '')
+        data_source_name = name or file.filename.rsplit('.', 1)[0]
         
         new_data_source = DataSource(
             user_id=user.id,
             name=data_source_name,
-            type="csv",
+            type=source_type,
             status="connected",
             file_path=file_path,
             row_count=row_count,
@@ -125,6 +129,8 @@ class DataSourceService:
         db.add(new_data_source)
         db.commit()
         db.refresh(new_data_source)
+        
+        logger.info(f"Successfully uploaded {source_type} file: {data_source_name}")
         
         return new_data_source
     
@@ -193,14 +199,8 @@ class DataSourceService:
         data_source_id: UUID,
         limit: int = 100
     ) -> dict:
-        """Get preview of data source (first N rows)."""
+        """Get preview of data source (first N rows) - supports all file types."""
         data_source = DataSourceService.get_data_source(db, user, data_source_id)
-        
-        if data_source.type != "csv":
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Preview only available for CSV files currently"
-            )
         
         if not data_source.file_path or not os.path.exists(data_source.file_path):
             raise HTTPException(
@@ -209,20 +209,36 @@ class DataSourceService:
             )
         
         try:
-            # Read CSV file
-            df = pd.read_csv(data_source.file_path, nrows=limit)
+            # Read file based on type
+            with open(data_source.file_path, 'rb') as f:
+                content = f.read()
+            
+            # Get original filename from path
+            filename = os.path.basename(data_source.file_path)
+            
+            # Parse with FileParser
+            df = FileParser.parse_file(filename, content)
+            
+            # Limit rows
+            df = df.head(limit)
+            
+            # IMPORTANT: Replace NaN with None for JSON serialization
+            df = df.replace({pd.NA: None, pd.NaT: None})
+            df = df.where(pd.notnull(df), None)
             
             # Convert to dictionary format
             preview_data = {
                 "columns": df.columns.tolist(),
                 "rows": df.to_dict(orient='records'),
                 "total_rows": data_source.row_count,
-                "preview_rows": len(df)
+                "preview_rows": len(df),
+                "file_type": data_source.type
             }
             
             return preview_data
             
         except Exception as e:
+            logger.error(f"Error previewing data: {str(e)}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Error reading data file: {str(e)}"
@@ -249,3 +265,36 @@ class DataSourceService:
         db.refresh(data_source)
         
         return data_source
+    
+    @staticmethod
+    async def get_excel_sheets(file: UploadFile) -> dict:
+        """
+        Get list of sheets from an Excel file.
+        
+        Args:
+            file: Excel file
+            
+        Returns:
+            Dictionary with sheet names
+        """
+        file_type = FileParser.get_file_type(file.filename)
+        
+        if file_type not in ['.xlsx', '.xls']:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="File must be an Excel file (.xlsx or .xls)"
+            )
+        
+        try:
+            contents = await file.read()
+            sheets = FileParser.get_excel_sheets(contents)
+            return {
+                "filename": file.filename,
+                "sheets": sheets,
+                "sheet_count": len(sheets)
+            }
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Failed to read Excel file: {str(e)}"
+            )

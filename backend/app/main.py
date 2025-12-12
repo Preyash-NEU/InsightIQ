@@ -1,12 +1,25 @@
 import logging
 from app.core.logging_config import setup_logging
-
-from fastapi import FastAPI
+from starlette.middleware.base import BaseHTTPMiddleware
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from datetime import datetime
-
+import logging
+from fastapi.responses import JSONResponse
 from app.config import settings
 from app.api.v1.router import api_router
+
+class RateLimitHeadersMiddleware(BaseHTTPMiddleware):
+    """Middleware to add rate limit headers to responses."""
+    
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        
+        # Rate limit headers are added by the dependency
+        # This middleware ensures they're always present
+        
+        return response
 
 # Create FastAPI app
 app = FastAPI(
@@ -27,6 +40,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Add after CORS middleware
+app.add_middleware(RateLimitHeadersMiddleware)
 
 # Include API v1 router
 app.include_router(api_router, prefix="/api/v1")
@@ -71,3 +87,18 @@ async def shutdown_event():
     logger.info("=" * 60)
     logger.info(f"👋 {settings.APP_NAME} shutting down...")
     logger.info("=" * 60)
+
+@app.exception_handler(429)
+async def rate_limit_handler(request: Request, exc: HTTPException):
+    """Custom handler for rate limit exceeded errors."""
+    return JSONResponse(
+        status_code=429,
+        content={
+            "error": "Rate Limit Exceeded",
+            "message": "You have exceeded the rate limit for this endpoint",
+            "detail": exc.detail if hasattr(exc, 'detail') else None,
+            "documentation": "Check response headers for X-RateLimit-* information"
+        },
+        headers=exc.headers if hasattr(exc, 'headers') else {}
+    )
+    

@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
+from app.api.rate_limit_deps import auth_rate_limit_dependency
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
@@ -17,7 +18,8 @@ class LoginRequest(BaseModel):
 @router.post("/register", response_model=UserPublic, status_code=status.HTTP_201_CREATED)
 async def register(
     user_data: UserCreate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    rate_limit_info: dict = Depends(auth_rate_limit_dependency)
 ):
     """
     Register a new user.
@@ -32,7 +34,8 @@ async def register(
 @router.post("/login", response_model=Token)
 async def login(
     login_data: LoginRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    rate_limit_info: dict = Depends(auth_rate_limit_dependency)
 ):
     """
     Login with email and password.

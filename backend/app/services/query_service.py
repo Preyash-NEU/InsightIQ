@@ -94,25 +94,45 @@ class QueryService:
         import numpy as np
         
         if isinstance(result, pd.DataFrame):
+            # Replace NaN with None for JSON serialization
+            result_clean = result.replace({pd.NA: None, pd.NaT: None})
+            result_clean = result_clean.where(pd.notnull(result_clean), None)
+            
             # Convert DataFrame to dict
             return {
                 "type": "dataframe",
-                "data": result.to_dict(orient='records'),
-                "columns": result.columns.tolist(),
-                "shape": result.shape
+                "data": result_clean.to_dict(orient='records'),
+                "columns": result_clean.columns.tolist(),
+                "shape": result_clean.shape
             }
         elif isinstance(result, pd.Series):
+            # Replace NaN in Series too
+            result_clean = result.replace({pd.NA: None, pd.NaT: None})
+            result_clean = result_clean.where(pd.notnull(result_clean), None)
+            
             return {
                 "type": "series",
-                "data": result.to_dict(),
-                "name": result.name
+                "data": result_clean.to_dict(),
+                "name": result_clean.name
             }
         elif isinstance(result, (np.integer, np.floating)):
+            # Check for NaN or Inf
+            if np.isnan(result) or np.isinf(result):
+                return {
+                    "type": "scalar",
+                    "value": None
+                }
             return {
                 "type": "scalar",
                 "value": float(result)
             }
         elif isinstance(result, (int, float, str, bool)):
+            # Check for NaN or Inf in float
+            if isinstance(result, float) and (np.isnan(result) or np.isinf(result)):
+                return {
+                    "type": "scalar",
+                    "value": None
+                }
             return {
                 "type": "scalar",
                 "value": result

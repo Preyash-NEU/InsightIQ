@@ -35,6 +35,26 @@ class Settings(BaseSettings):
     REDIS_HOST: str = "redis"
     REDIS_PORT: int = 6379
     
+    # Rate Limiting Settings
+    RATE_LIMIT_ENABLED: bool = True
+    
+    # Authentication endpoints (stricter limits)
+    RATE_LIMIT_AUTH_LOGIN: int = 5          # 5 login attempts
+    RATE_LIMIT_AUTH_REGISTER: int = 3       # 3 registrations
+    RATE_LIMIT_AUTH_WINDOW: int = 60        # per minute
+    
+    # Query endpoints (moderate limits)
+    RATE_LIMIT_QUERIES: int = 30            # 30 queries
+    RATE_LIMIT_QUERIES_WINDOW: int = 60     # per minute
+    
+    # Upload endpoints (stricter)
+    RATE_LIMIT_UPLOADS: int = 10            # 10 uploads
+    RATE_LIMIT_UPLOADS_WINDOW: int = 3600   # per hour
+    
+    # General API (lenient)
+    RATE_LIMIT_GENERAL: int = 100           # 100 requests
+    RATE_LIMIT_GENERAL_WINDOW: int = 60     # per minute
+    
     # OpenAI
     OPENAI_API_KEY: Optional[str] = None
     OPENAI_MODEL: str = "gpt-4-turbo"
@@ -48,7 +68,7 @@ class Settings(BaseSettings):
     
     # File Upload Settings
     MAX_FILE_SIZE_MB: int = 100
-    ALLOWED_FILE_EXTENSIONS: str = ".csv,.xlsx,.json"
+    ALLOWED_FILE_EXTENSIONS: str = ".csv,.xlsx,.xls,.json,.parquet,.tsv,.txt"
     UPLOAD_DIR: str = "/app/storage/uploads"
     
     # OpenAI Settings
