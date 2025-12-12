@@ -1,6 +1,8 @@
 import pandas as pd
 from typing import Dict, List, Any, Tuple
 import logging
+from datetime import datetime
+import pandas as pd
 
 logger = logging.getLogger(__name__)
 
@@ -70,13 +72,22 @@ class DataValidator:
         for col in df.columns:
             dtype = str(df[col].dtype)
             
+            # Get sample values and convert to JSON-serializable format
+            sample_values = df[col].dropna().head(3).tolist()
+            
+            # Convert any datetime objects to strings
+            sample_values = [
+                val.isoformat() if isinstance(val, (pd.Timestamp, datetime)) else val
+                for val in sample_values
+            ]
+            
             # Enhanced type detection
             col_info = {
                 "name": col,
                 "type": dtype,
                 "null_count": int(df[col].isnull().sum()),
                 "unique_count": int(df[col].nunique()),
-                "sample_values": df[col].dropna().head(3).tolist() if not df[col].empty else []
+                "sample_values": sample_values  # Now JSON-serializable
             }
             
             # Try to detect if numeric column is actually categorical
@@ -85,7 +96,9 @@ class DataValidator:
                 
                 if unique_ratio < 0.05 and df[col].nunique() < 20:
                     col_info["suggested_type"] = "categorical"
-                    col_info["categories"] = df[col].value_counts().head(10).to_dict()
+                    # Convert categories dict values to JSON-serializable
+                    categories = df[col].value_counts().head(10).to_dict()
+                    col_info["categories"] = {str(k): int(v) for k, v in categories.items()}
                 else:
                     col_info["suggested_type"] = "numeric"
                     col_info["stats"] = {
@@ -106,7 +119,9 @@ class DataValidator:
                     
                     if unique_ratio < 0.1 or df[col].nunique() < 50:
                         col_info["suggested_type"] = "categorical"
-                        col_info["categories"] = df[col].value_counts().head(10).to_dict()
+                        # Convert to JSON-serializable
+                        categories = df[col].value_counts().head(10).to_dict()
+                        col_info["categories"] = {str(k): int(v) for k, v in categories.items()}
                     else:
                         col_info["suggested_type"] = "text"
             
@@ -120,7 +135,7 @@ class DataValidator:
         Generate comprehensive data quality report.
         
         Returns:
-            Dictionary with data quality metrics
+            Dictionary with data quality metrics (all JSON-serializable)
         """
         total_cells = df.shape[0] * df.shape[1]
         null_cells = df.isnull().sum().sum()
@@ -134,9 +149,9 @@ class DataValidator:
             null_count = df[col].isnull().sum()
             if null_count > 0:
                 columns_with_nulls.append({
-                    "column": col,
+                    "column": str(col),  # Convert to string
                     "null_count": int(null_count),
-                    "null_percentage": round(null_count / len(df) * 100, 2)
+                    "null_percentage": round(float(null_count / len(df) * 100), 2)
                 })
         
         # Check for duplicate rows
@@ -146,12 +161,12 @@ class DataValidator:
         memory_mb = df.memory_usage(deep=True).sum() / (1024 * 1024)
         
         return {
-            "total_rows": len(df),
-            "total_columns": len(df.columns),
-            "total_cells": total_cells,
-            "completeness_percentage": round(completeness, 2),
+            "total_rows": int(len(df)),
+            "total_columns": int(len(df.columns)),
+            "total_cells": int(total_cells),
+            "completeness_percentage": round(float(completeness), 2),
             "null_cells": int(null_cells),
             "duplicate_rows": int(duplicate_rows),
-            "memory_usage_mb": round(memory_mb, 2),
+            "memory_usage_mb": round(float(memory_mb), 2),
             "columns_with_nulls": columns_with_nulls
         }
