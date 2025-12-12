@@ -21,7 +21,7 @@
 ## 📖 About
 
 **InsightIQ** is a modern, AI-powered data analytics platform that allows users to:
-- 📊 Upload and manage multiple data sources (CSV, Google Sheets, APIs)
+- 📊 Upload and manage multiple data sources (CSV, Excel, Google Sheets, APIs)
 - 🤖 Ask questions about data in plain English
 - 📈 Get instant visualizations and insights
 - ⚡ Execute custom pandas code for advanced analysis
@@ -40,7 +40,7 @@
 - Role-based access control ready
 
 ### 📊 **Data Management**
-- **Multiple Data Sources**: CSV upload with drag-and-drop
+- **Multiple Data Sources**: Upload various supported file with drag-and-drop
 - **Smart Validation**: Automatic data quality checks and type inference
 - **Data Preview**: See your data before querying (up to 1000 rows)
 - **Metadata Extraction**: Automatic column detection, types, and statistics
@@ -227,7 +227,7 @@ visualizations (Chart Configs)
 
 ## 📚 API Documentation
 
-### **26 RESTful Endpoints**
+### **35 RESTful Endpoints**
 
 #### **Authentication** (5 endpoints)
 ```
@@ -240,21 +240,30 @@ GET    /api/v1/auth/me                # Get current user
 
 #### **User Management** (5 endpoints)
 ```
-GET    /api/v1/users/me               # Get profile
-PUT    /api/v1/users/me               # Update profile
+GET    /api/v1/users/me                  # Get profile
+PUT    /api/v1/users/me                  # Update profile
 POST   /api/v1/users/me/change-password  # Change password
-GET    /api/v1/users/me/stats         # Get user statistics
-DELETE /api/v1/users/me               # Delete account
+GET    /api/v1/users/me/stats            # Get user statistics
+DELETE /api/v1/users/me                  # Delete account
 ```
 
-#### **Data Sources** (6 endpoints)
+#### **Data Sources** (15 endpoints)
 ```
-POST   /api/v1/data-sources/upload-csv      # Upload CSV file
-GET    /api/v1/data-sources                 # List all sources
-GET    /api/v1/data-sources/{id}            # Get single source
-PUT    /api/v1/data-sources/{id}            # Update source
-DELETE /api/v1/data-sources/{id}            # Delete source
-GET    /api/v1/data-sources/{id}/preview    # Preview data
+POST   /api/v1/data-sources/upload-csv        # Upload CSV file
+POST   /api/v1/data-sources/upload            # Upload File
+POST   /api/v1/data-sources/excel/sheets      # Get Excel sheets
+GET    /api/v1/data-sources                   # Get data sources
+GET    /api/v1/data-sources/{data_source_id}  # Get data source by Id
+GET    /api/v1/data-sources                   # List all sources
+GET    /api/v1/data-sources/{id}              # Get single source
+PUT    /api/v1/data-sources/{id}              # Update source
+PUT    /api/v1/data-sources/{data_source_id}  # Update data source
+DELETE /api/v1/data-sources/{id}              # Delete source
+DELETE /api/v1/data-sources/{data_source_id}  # Delete data dource
+GET    /api/v1/data-sources/{id}/preview      # Preview data
+POST   /api/v1/data-sources/database/test     # Test DB connection
+POST   /api/v1/data-sources/database/connect  # Connect DB
+GET    /api/v1/data-sources/database/connect  # List DB Tables
 ```
 
 #### **Queries & Analysis** (6 endpoints)
@@ -273,6 +282,7 @@ GET    /api/v1/stats/dashboard        # Dashboard overview
 GET    /api/v1/stats/usage             # Usage analytics
 GET    /api/v1/stats/activity          # Recent activity
 GET    /api/v1/stats/insights          # AI insights
+GET    /api/v1/stats/rate-limits       # Get Rate Limits
 ```
 
 ### **Interactive API Documentation**
