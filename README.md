@@ -21,11 +21,12 @@
 ## 📖 About
 
 **InsightIQ** is a modern, AI-powered data analytics platform that allows users to:
-- 📊 Upload and manage multiple data sources (CSV, Excel, Google Sheets, APIs)
+- 📊 Upload and manage multiple data sources (CSV, Excel, JSON, Parquet, Google Sheets, Databases)
 - 🤖 Ask questions about data in plain English
 - 📈 Get instant visualizations and insights
 - ⚡ Execute custom pandas code for advanced analysis
 - 📱 Track usage analytics and query history
+- 🔒 Enterprise-grade security with rate limiting
 
 > **No coding required** - Just ask questions like "What was the total revenue last quarter?" and get instant answers with beautiful charts.
 
@@ -35,39 +36,63 @@
 
 ### 🔐 **Authentication & Security**
 - JWT-based authentication with access & refresh tokens
-- Secure password hashing (bcrypt)
-- User profile management
+- Secure password hashing (bcrypt, cost factor 12)
+- User profile management (update, change password, delete account)
+- **Rate limiting** to prevent abuse and protect API costs
 - Role-based access control ready
 
-### 📊 **Data Management**
-- **Multiple Data Sources**: Upload various supported file with drag-and-drop
+### 📊 **Multi-Format Data Management**
+- **Multiple File Types**: 
+  - CSV (.csv)
+  - Excel (.xlsx, .xls) with sheet selection
+  - JSON (.json)
+  - Parquet (.parquet)
+  - TSV/Tab-delimited (.tsv, .txt)
+- **Database Connections**:
+  - PostgreSQL
+  - MySQL/MariaDB
+  - SQLite
+  - Direct table querying
 - **Smart Validation**: Automatic data quality checks and type inference
 - **Data Preview**: See your data before querying (up to 1000 rows)
-- **Metadata Extraction**: Automatic column detection, types, and statistics
+- **Metadata Extraction**: Automatic column detection, types, statistics, and quality reports
 
 ### 🤖 **AI-Powered Queries**
 - **Natural Language**: Ask questions in plain English
 - **OpenAI Integration**: Powered by GPT-3.5/4 for intelligent query interpretation
 - **Pandas Code Generation**: AI converts your questions to executable Python code
-- **Query Caching**: Redis-powered caching for faster repeat queries
+- **Query Caching**: Redis-powered caching for faster repeat queries (5-min TTL)
+- **Multi-Source Support**: Query CSV files, Excel sheets, or database tables
 
 ### 📈 **Visualizations**
 - Automatic chart type detection (Bar, Line, Pie, KPI cards)
 - Interactive data tables
 - Export results to CSV/JSON
 - Customizable chart configurations
+- Smart visualization suggestions based on data types
 
 ### 📊 **Analytics Dashboard**
 - Real-time usage statistics
-- Query history with advanced filtering
-- Activity feed and insights
-- Storage usage tracking
+- Query history with advanced filtering and search
+- Activity feed with detailed tracking
+- AI-generated insights and recommendations
+- Storage usage monitoring
 
-### ⚡ **Performance**
+### ⚡ **Performance & Optimization**
 - **Redis Caching**: 5-minute cache for repeated queries (saves API costs)
 - **Query Optimization**: Smart execution with pandas
 - **Async Processing**: Non-blocking API operations
 - **Database Indexing**: Optimized for fast lookups
+- **Connection Pooling**: Efficient database connections
+- **Rate Limiting**: Protects against abuse and controls costs
+
+### 🛡️ **Rate Limiting**
+- **Authentication**: 5 login attempts per minute (prevents brute-force)
+- **Queries**: 30 AI queries per minute (controls OpenAI costs)
+- **Uploads**: 10 file uploads per hour (prevents storage abuse)
+- **General API**: 100 requests per minute
+- **Real-time Tracking**: Check remaining requests via API
+- **Custom Headers**: X-RateLimit-* headers in all responses
 
 ---
 
@@ -76,11 +101,14 @@
 ### **Backend**
 - **Framework**: FastAPI 0.104+ (Python 3.11+)
 - **Database**: PostgreSQL 15+ with SQLAlchemy ORM
-- **Cache**: Redis 7+ for query caching
+- **Cache**: Redis 7+ for query caching and rate limiting
 - **AI/ML**: OpenAI API (GPT-3.5 Turbo / GPT-4)
 - **Data Processing**: Pandas, NumPy
+- **File Formats**: openpyxl (Excel), pyarrow (Parquet), JSON
+- **Database Connectors**: psycopg2 (PostgreSQL), PyMySQL (MySQL)
 - **Authentication**: JWT with python-jose
 - **Security**: bcrypt password hashing, CORS middleware
+- **Validation**: Pydantic schemas with enhanced type detection
 
 ### **Frontend** *(Coming Soon)*
 - **Framework**: React 18+ with TypeScript 5+
@@ -95,7 +123,7 @@
 - **Containerization**: Docker + Docker Compose
 - **Database Tools**: pgAdmin 4
 - **API Documentation**: Swagger UI + ReDoc
-- **Logging**: Rotating file logs + console output
+- **Logging**: Rotating file logs + console output (10MB max, 5 backups)
 - **Version Control**: Git + GitHub
 
 ---
@@ -121,9 +149,9 @@
 │  │  ┌──────────────┐  ┌──────────────┐  ┌─────────┐  │     │
 │  │  │ Auth Service │  │ Data Service │  │AI Service│ │     │
 │  │  └──────────────┘  └──────────────┘  └─────────┘  │     │
-│  │  ┌──────────────┐  ┌──────────────┐               │     │
-│  │  │Query Service │  │Stats Service │               │     │
-│  │  └──────────────┘  └──────────────┘               │     │
+│  │  ┌──────────────┐  ┌──────────────┐  ┌─────────┐  │     │
+│  │  │Query Service │  │Stats Service │  │Rate Limit│ │     │
+│  │  └──────────────┘  └──────────────┘  └─────────┘  │     │
 │  └────────────────────────────────────────────────────┘     │
 └──────┬────────────────┬────────────────┬────────────────────┘
        │                │                │
@@ -131,7 +159,18 @@
 ┌─────────────┐  ┌─────────────┐  ┌─────────────┐
 │ PostgreSQL  │  │    Redis    │  │  OpenAI API │
 │  Database   │  │    Cache    │  │  (GPT-3.5)  │
-└─────────────┘  └─────────────┘  └─────────────┘
+│             │  │  + Rate     │  └─────────────┘
+│             │  │  Limiting   │
+└─────────────┘  └─────────────┘
+       │
+       ▼
+┌─────────────────────────────────┐
+│   External Data Sources         │
+│  - MySQL/MariaDB                │
+│  - PostgreSQL                   │
+│  - SQLite                       │
+│  - Google Sheets (planned)      │
+└─────────────────────────────────┘
 ```
 
 ### **Database Schema**
@@ -146,6 +185,7 @@ data_sources (Data Management)
   ├─ id, user_id, name, type, status
   ├─ file_path, row_count, file_size
   ├─ columns_info (JSONB), connection_info (JSONB)
+  ├─ Supports: CSV, Excel, JSON, Parquet, TSV, Database connections
   └─ Relationships: queries
 
 queries (Query History)
@@ -174,7 +214,7 @@ visualizations (Chart Configs)
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/yourusername/InsightIQ.git
+   git clone https://github.com/Preyash-NEU/InsightIQ.git
    cd InsightIQ
    ```
 
@@ -218,7 +258,7 @@ visualizations (Chart Configs)
 2. Register a new user: `POST /api/v1/auth/register`
 3. Login: `POST /api/v1/auth/login` (copy the access token)
 4. Click "Authorize" button (top right) and paste token
-5. Upload a CSV: `POST /api/v1/data-sources/upload-csv`
+5. Upload a file: `POST /api/v1/data-sources/upload` (CSV, Excel, JSON, or Parquet)
 6. Ask a question: `POST /api/v1/queries/natural-language`
 
 **Example query**: "What is the total sum of the revenue column?"
@@ -232,7 +272,7 @@ visualizations (Chart Configs)
 #### **Authentication** (5 endpoints)
 ```
 POST   /api/v1/auth/register          # Create new account
-POST   /api/v1/auth/login             # Login with JWT
+POST   /api/v1/auth/login             # Login with JWT (rate limited: 5/min)
 POST   /api/v1/auth/refresh           # Refresh access token
 POST   /api/v1/auth/logout            # Logout user
 GET    /api/v1/auth/me                # Get current user
@@ -240,11 +280,11 @@ GET    /api/v1/auth/me                # Get current user
 
 #### **User Management** (5 endpoints)
 ```
-GET    /api/v1/users/me                  # Get profile
-PUT    /api/v1/users/me                  # Update profile
+GET    /api/v1/users/me               # Get profile
+PUT    /api/v1/users/me               # Update profile
 POST   /api/v1/users/me/change-password  # Change password
-GET    /api/v1/users/me/stats            # Get user statistics
-DELETE /api/v1/users/me                  # Delete account
+GET    /api/v1/users/me/stats         # Get user statistics
+DELETE /api/v1/users/me               # Delete account
 ```
 
 #### **Data Sources** (15 endpoints)
@@ -268,15 +308,15 @@ GET    /api/v1/data-sources/database/connect  # List DB Tables
 
 #### **Queries & Analysis** (6 endpoints)
 ```
-POST   /api/v1/queries/natural-language     # AI-powered query
-POST   /api/v1/queries/execute              # Execute pandas code
+POST   /api/v1/queries/natural-language     # AI-powered query (rate limited: 30/min)
+POST   /api/v1/queries/execute              # Execute pandas code (rate limited: 30/min)
 GET    /api/v1/queries                      # List queries (with filters)
 GET    /api/v1/queries/{id}                 # Get single query
 POST   /api/v1/queries/{id}/save            # Save/favorite query
 DELETE /api/v1/queries/{id}                 # Delete query
 ```
 
-#### **Statistics & Analytics** (4 endpoints)
+#### **Statistics & Analytics** (5 endpoints)
 ```
 GET    /api/v1/stats/dashboard        # Dashboard overview
 GET    /api/v1/stats/usage             # Usage analytics
@@ -291,6 +331,7 @@ GET    /api/v1/stats/rate-limits       # Get Rate Limits
   - Try out all endpoints
   - See request/response schemas
   - Built-in authentication
+  - View rate limit headers
   
 - **ReDoc**: http://localhost:8000/redoc
   - Clean, searchable documentation
@@ -317,7 +358,7 @@ GET    /api/v1/stats/rate-limits       # Get Rate Limits
 3. **Secure execution**
    - Sandboxed environment
    - Banned keywords (import, eval, os, etc.)
-   - Timeout protection
+   - Timeout protection (30 seconds)
 
 4. **Results + Visualization**
    - Returns result data
@@ -333,6 +374,7 @@ GET    /api/v1/stats/rate-limits       # Get Rate Limits
 | **Grouping** | "Sales by region" | Bar chart |
 | **Time Series** | "Revenue over time" | Line chart |
 | **Statistics** | "Average order value" | Number + trend |
+| **Database Queries** | "Count users in database" | Query result from DB |
 
 ### **Caching Strategy**
 
@@ -342,6 +384,67 @@ GET    /api/v1/stats/rate-limits       # Get Rate Limits
   - Faster repeat queries (instant vs. ~2-5 seconds)
   - Reduced OpenAI API costs (saves $$ on popular queries)
   - Better user experience
+
+---
+
+## 📁 Supported File Formats
+
+| Format | Extension | Features | Use Case |
+|--------|-----------|----------|----------|
+| **CSV** | .csv | Fast, universal | General data |
+| **Excel** | .xlsx, .xls | Multi-sheet support | Business reports |
+| **JSON** | .json | Nested data support | API responses |
+| **Parquet** | .parquet | Columnar, compressed | Big data |
+| **TSV** | .tsv, .txt | Tab-delimited | Log files |
+
+### **Database Connections**
+
+| Database | Support | Features |
+|----------|---------|----------|
+| **PostgreSQL** | ✅ Full | Tables, views, direct SQL |
+| **MySQL/MariaDB** | ✅ Full | Tables, views, direct SQL |
+| **SQLite** | ✅ Full | Local databases |
+| **MongoDB** | 🔜 Planned | Document queries |
+| **Google Sheets** | 🔜 Planned | Live sync |
+
+---
+
+## 🛡️ Rate Limiting Details
+
+### **Default Limits**
+
+| Endpoint Category | Limit | Window | Purpose |
+|------------------|-------|--------|---------|
+| **Authentication** | 5 requests | 1 minute | Prevent brute-force attacks |
+| **AI Queries** | 30 requests | 1 minute | Control OpenAI API costs |
+| **File Uploads** | 10 uploads | 1 hour | Prevent storage abuse |
+| **General API** | 100 requests | 1 minute | Overall protection |
+
+### **Rate Limit Headers**
+
+Every response includes:
+```
+X-RateLimit-Limit: 30          # Total allowed
+X-RateLimit-Remaining: 25      # Remaining requests
+X-RateLimit-Reset: 1733891234  # Unix timestamp when limit resets
+Retry-After: 45                # Seconds to wait (if exceeded)
+```
+
+### **Check Your Status**
+```
+GET /api/v1/stats/rate-limits
+```
+
+Returns current usage for all rate-limited endpoints.
+
+### **Customization**
+
+Edit `backend/.env` to adjust limits:
+```bash
+RATE_LIMIT_QUERIES=50          # Increase query limit
+RATE_LIMIT_UPLOADS=20          # Increase upload limit
+RATE_LIMIT_ENABLED=false       # Disable for development
+```
 
 ---
 
@@ -356,6 +459,7 @@ InsightIQ/
 │   │   │
 │   │   ├── api/               # API layer
 │   │   │   ├── deps.py        # Dependencies (auth, db)
+│   │   │   ├── rate_limit_deps.py  # Rate limiting
 │   │   │   └── v1/
 │   │   │       ├── router.py  # Main API router
 │   │   │       └── endpoints/ # Route handlers
@@ -387,10 +491,13 @@ InsightIQ/
 │   │   │
 │   │   ├── core/              # Core utilities
 │   │   │   ├── security.py    # JWT, password hashing
-│   │   │   └── logging_config.py
+│   │   │   ├── logging_config.py
+│   │   │   └── rate_limiter.py
 │   │   │
 │   │   ├── utils/             # Helper functions
-│   │   │   └── validators.py
+│   │   │   ├── validators.py
+│   │   │   ├── file_parsers.py
+│   │   │   └── database_connector.py
 │   │   │
 │   │   └── db/                # Database
 │   │       └── session.py     # DB connection
@@ -508,6 +615,9 @@ docker exec -it insightiq_postgres psql -U insightiq_user -d insightiq_db
 
 # Access backend shell
 docker exec -it insightiq_backend bash
+
+# View backend logs
+docker exec -it insightiq_backend tail -f /app/logs/insightiq.log
 ```
 
 ---
@@ -560,13 +670,14 @@ See [UI-DESIGN-SYSTEM.md](docs/UI-DESIGN-SYSTEM.md) for complete specifications.
 ## 🔐 Security Features
 
 - **Password Hashing**: bcrypt with cost factor 12
-- **JWT Tokens**: HS256 algorithm with expiration
+- **JWT Tokens**: HS256 algorithm with expiration (1hr access, 30d refresh)
+- **Rate Limiting**: Redis-based, per-user and per-IP
 - **CORS**: Configured for specific origins only
 - **SQL Injection**: Prevented via SQLAlchemy ORM
 - **Code Execution**: Sandboxed with banned keywords
-- **Rate Limiting**: Ready for implementation
 - **Input Validation**: Pydantic schemas for all endpoints
 - **Environment Variables**: Secrets never committed to Git
+- **Database Connections**: Encrypted credentials in production
 
 ---
 
@@ -579,6 +690,8 @@ See [UI-DESIGN-SYSTEM.md](docs/UI-DESIGN-SYSTEM.md) for complete specifications.
 - **Pagination**: All list endpoints support skip/limit
 - **File Size Limits**: 100MB max for uploads
 - **Query Timeout**: 30 seconds max execution time
+- **Rate Limiting**: Prevents resource exhaustion
+- **NaN Handling**: Proper null value serialization for JSON
 
 ---
 
@@ -588,12 +701,14 @@ See [UI-DESIGN-SYSTEM.md](docs/UI-DESIGN-SYSTEM.md) for complete specifications.
 
 ✨ **No Code Required**: Ask questions in plain English  
 🚀 **Fast**: Redis caching + optimized queries  
-🔒 **Secure**: Enterprise-grade authentication & authorization  
+🔒 **Secure**: Enterprise-grade authentication, authorization & rate limiting  
 📊 **Smart**: AI-powered query interpretation  
 🎨 **Beautiful**: Modern Navy Sage UI design  
 📈 **Scalable**: Microservices-ready architecture  
 🧪 **Production-Ready**: Logging, monitoring, error handling  
 📱 **Mobile-First**: Responsive design (frontend)  
+🗄️ **Versatile**: Supports 5 file formats + 3 database types  
+🛡️ **Protected**: Rate limiting prevents abuse and controls costs  
 
 ---
 
@@ -610,29 +725,34 @@ See [UI-DESIGN-SYSTEM.md](docs/UI-DESIGN-SYSTEM.md) for complete specifications.
 ## 🗺️ Roadmap
 
 ### **Phase 1: MVP** ✅ (Complete)
-- [x] Authentication system
-- [x] CSV data upload
+- [x] Authentication system with JWT
+- [x] Multi-format file upload (CSV, Excel, JSON, Parquet, TSV)
+- [x] Database connections (PostgreSQL, MySQL, SQLite)
 - [x] AI-powered natural language queries
 - [x] Query history and favorites
 - [x] Dashboard analytics
-- [x] Redis caching
+- [x] Redis caching for performance
 - [x] User profile management
+- [x] Rate limiting for security
+- [x] Enhanced data validation
+- [x] Comprehensive logging
 
 ### **Phase 2: Enhanced Features** 🚧 (In Progress)
 - [ ] React frontend with Navy Sage theme
 - [ ] Google Sheets integration
-- [ ] Excel file support
-- [ ] Advanced visualizations
+- [ ] Advanced visualizations (scatter, heatmap, funnel)
 - [ ] Email notifications
 - [ ] Password reset flow
+- [ ] Query export (PDF, Excel)
 
 ### **Phase 3: Advanced Features** 📋 (Planned)
-- [ ] Database connections (MySQL, PostgreSQL)
 - [ ] REST API connectors
 - [ ] Team collaboration features
 - [ ] Scheduled queries
 - [ ] Custom dashboards
 - [ ] White-labeling options
+- [ ] Real-time data streaming
+- [ ] MongoDB integration
 
 ---
 
@@ -663,8 +783,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 👨‍💻 Author
 
-**Your Name**
-- GitHub: [Preyash](https://github.com/Preyash-NEU)
+**Preyash Mehta**
+- GitHub: [@Preyash-NEU](https://github.com/Preyash-NEU)
 - LinkedIn: [Preyash Mehta](https://www.linkedin.com/in/preyash-mehta/)
 - Email: preyash.mehta.12@gmail.com
 
@@ -678,6 +798,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - [Tailwind CSS](https://tailwindcss.com/) - Utility-first CSS
 - [PostgreSQL](https://www.postgresql.org/) - Robust relational database
 - [Redis](https://redis.io/) - High-performance caching
+
 
 ---
 
