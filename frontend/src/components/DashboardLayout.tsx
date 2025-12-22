@@ -1,5 +1,5 @@
-import { useState, ReactNode } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, ReactNode } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   Home, 
   Database, 
@@ -24,9 +24,37 @@ interface DashboardLayoutProps {
 
 const DashboardLayout = ({ children, title }: DashboardLayoutProps) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, logout } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [currentPage, setCurrentPage] = useState('dashboard');
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Detect mobile screen size
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 1024); // lg breakpoint
+      if (window.innerWidth < 1024) {
+        setSidebarOpen(false); // Close sidebar on mobile by default
+      }
+    };
+
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // Determine active page from current route
+  const getActivePage = () => {
+    const path = location.pathname;
+    if (path === '/dashboard') return 'dashboard';
+    if (path === '/data-sources') return 'datasources';
+    if (path === '/analysis') return 'analysis';
+    if (path === '/history') return 'history';
+    if (path === '/settings') return 'settings';
+    return 'dashboard';
+  };
+
+  const currentPage = getActivePage();
 
   const navItems = [
     { id: 'dashboard', icon: Home, label: 'Dashboard', path: '/dashboard' },
@@ -36,9 +64,12 @@ const DashboardLayout = ({ children, title }: DashboardLayoutProps) => {
     { id: 'settings', icon: Settings, label: 'Settings', path: '/settings' },
   ];
 
-  const handleNavigation = (path: string, id: string) => {
-    setCurrentPage(id);
+  const handleNavigation = (path: string) => {
     navigate(path);
+    // Close sidebar on mobile after navigation
+    if (isMobile) {
+      setSidebarOpen(false);
+    }
   };
 
   const handleLogout = async () => {
@@ -46,17 +77,31 @@ const DashboardLayout = ({ children, title }: DashboardLayoutProps) => {
     navigate('/');
   };
 
+  const toggleSidebar = () => {
+    setSidebarOpen(!sidebarOpen);
+  };
+
   return (
     <div className="min-h-screen bg-slate-950 flex">
+      {/* Mobile Overlay - Click outside to close */}
+      {isMobile && sidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
       <aside
         className={`${
-          sidebarOpen ? 'w-72' : 'w-20'
-        } bg-slate-900 border-r border-slate-800/50 transition-all duration-300 flex flex-col relative`}
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+        } ${
+          sidebarOpen && !isMobile ? 'w-72' : 'lg:w-20'
+        } fixed lg:relative inset-y-0 left-0 z-50 bg-slate-900 border-r border-slate-800/50 transition-all duration-300 flex flex-col`}
       >
         {/* Logo & Toggle */}
         <div className="p-6 border-b border-slate-800/50 flex items-center justify-between">
-          {sidebarOpen && (
+          {(sidebarOpen || isMobile) && (
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-cyan-500/30">
                 <Sparkles className="w-6 h-6 text-white" />
@@ -67,10 +112,10 @@ const DashboardLayout = ({ children, title }: DashboardLayoutProps) => {
             </div>
           )}
           <button
-            onClick={() => setSidebarOpen(!sidebarOpen)}
+            onClick={toggleSidebar}
             className="p-2 hover:bg-cyan-500/10 rounded-lg text-slate-400 hover:text-white transition-all"
           >
-            {sidebarOpen ? <ChevronLeft className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            {sidebarOpen || isMobile ? <ChevronLeft className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
         </div>
 
@@ -79,7 +124,7 @@ const DashboardLayout = ({ children, title }: DashboardLayoutProps) => {
           {navItems.map((item) => (
             <button
               key={item.id}
-              onClick={() => handleNavigation(item.path, item.id)}
+              onClick={() => handleNavigation(item.path)}
               className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all ${
                 currentPage === item.id
                   ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-lg shadow-cyan-500/20'
@@ -87,7 +132,7 @@ const DashboardLayout = ({ children, title }: DashboardLayoutProps) => {
               }`}
             >
               <item.icon className="w-5 h-5" />
-              {sidebarOpen && <span className="font-medium">{item.label}</span>}
+              {(sidebarOpen || isMobile) && <span className="font-medium">{item.label}</span>}
             </button>
           ))}
 
@@ -98,7 +143,7 @@ const DashboardLayout = ({ children, title }: DashboardLayoutProps) => {
               className="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-slate-400 hover:bg-red-500/10 hover:text-red-400 transition-all"
             >
               <LogOut className="w-5 h-5" />
-              {sidebarOpen && <span className="font-medium">Logout</span>}
+              {(sidebarOpen || isMobile) && <span className="font-medium">Logout</span>}
             </button>
           </div>
         </nav>
@@ -108,11 +153,21 @@ const DashboardLayout = ({ children, title }: DashboardLayoutProps) => {
       </aside>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
         <header className="bg-slate-900/50 backdrop-blur-xl border-b border-slate-800/50 px-6 py-4">
           <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold text-white">{title}</h1>
+            <div className="flex items-center gap-4">
+              {/* Mobile menu button */}
+              <button
+                onClick={toggleSidebar}
+                className="lg:hidden p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-all"
+              >
+                <Menu className="w-5 h-5" />
+              </button>
+              
+              <h1 className="text-2xl font-bold text-white">{title}</h1>
+            </div>
             
             <div className="flex items-center space-x-4">
               {/* Search */}
