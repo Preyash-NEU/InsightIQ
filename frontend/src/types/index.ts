@@ -9,6 +9,9 @@ export interface User {
   is_verified: boolean;
   created_at: string;
   last_login: string | null;
+  oauth_provider?: string | null;
+  oauth_id?: string | null;
+  avatar_url?: string | null;
 }
 
 export interface UserPublic {
@@ -63,3 +66,6 @@ export * from './dataSource';
 
 // Re-export query types
 export * from './query';
+
+// Re-export visualization types
+export * from './visualization';
