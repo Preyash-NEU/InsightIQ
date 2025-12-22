@@ -10,6 +10,8 @@ import Dashboard from './pages/Dashboard';
 import DataSources from './pages/DataSources';
 import History from './pages/History';
 import OAuthCallback from './pages/OAuthCallback';
+import Analysis from './pages/Analysis';
+import Settings from './pages/Settings';
 
 // Placeholder components for other routes
 const ComingSoon = ({ title }: { title: string }) => (
@@ -38,9 +40,9 @@ function App() {
           <Route element={<ProtectedRoute />}>
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/data-sources" element={<DataSources />} />
-            <Route path="/analysis" element={<ComingSoon title="Analysis" />} />
+            <Route path="/analysis" element={<Analysis />} />
             <Route path="/history" element={<History />} />
-            <Route path="/settings" element={<ComingSoon title="Settings" />} />
+            <Route path="/settings" element={<Settings />} />
           </Route>
           
           {/* Catch all - redirect to landing */}
