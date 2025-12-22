@@ -7,6 +7,9 @@ import Landing from './pages/Landing';
 import Login from './pages/Login';
 import SignUp from './pages/Signup';
 import Dashboard from './pages/Dashboard';
+import DataSources from './pages/DataSources';
+import History from './pages/History';
+import OAuthCallback from './pages/OAuthCallback';
 
 // Placeholder components for other routes
 const ComingSoon = ({ title }: { title: string }) => (
@@ -28,13 +31,16 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<SignUp />} />
           
+          {/* OAuth callback route */}
+          <Route path="/auth/callback" element={<OAuthCallback />} />
+          
           {/* Protected routes - require authentication */}
           <Route element={<ProtectedRoute />}>
             <Route path="/dashboard" element={<Dashboard />} />
-            {/* <Route path="/data-sources" element={<ComingSoon title="Data Sources" />} />
+            <Route path="/data-sources" element={<DataSources />} />
             <Route path="/analysis" element={<ComingSoon title="Analysis" />} />
-            <Route path="/history" element={<ComingSoon title="History" />} />
-            <Route path="/settings" element={<ComingSoon title="Settings" />} /> */}
+            <Route path="/history" element={<History />} />
+            <Route path="/settings" element={<ComingSoon title="Settings" />} />
           </Route>
           
           {/* Catch all - redirect to landing */}

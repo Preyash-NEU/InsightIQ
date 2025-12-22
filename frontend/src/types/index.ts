@@ -1,5 +1,6 @@
-// Types matching backend schemas
+// Export all types from central index
 
+// Auth types
 export interface User {
   id: string;
   email: string;
@@ -56,3 +57,9 @@ export interface UserStats {
   storage_used_mb: number;
   member_since: string;
 }
+
+// Re-export data source types
+export * from './dataSource';
+
+// Re-export query types
+export * from './query';
