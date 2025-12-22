@@ -8,6 +8,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   register: (fullName: string, email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  setUserFromOAuth: () => Promise<void>;  // ← New method for OAuth
   isAuthenticated: boolean;
 }
 
@@ -93,12 +94,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  // New method for OAuth - updates user after tokens are stored
+  const setUserFromOAuth = async () => {
+    try {
+      const currentUser = await AuthService.getCurrentUser();
+      setUser(currentUser);
+    } catch (error) {
+      console.error('Failed to get user after OAuth:', error);
+      throw error;
+    }
+  };
+
   const value: AuthContextType = {
     user,
     loading,
     login,
     register,
     logout,
+    setUserFromOAuth,  // ← Add this
     isAuthenticated: !!user,
   };
 
