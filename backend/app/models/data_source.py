@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Integer, BigInteger, DateTime, ForeignKey, Text
+from sqlalchemy import Column, String, Integer, BigInteger, DateTime, ForeignKey, Text, Float  # Added Float
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
 from datetime import datetime
@@ -22,6 +22,17 @@ class DataSource(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     last_synced_at = Column(DateTime, nullable=True)
+    
+    # Add after last_synced_at, before relationships
+    processing_report = Column(JSONB, nullable=True)
+    quality_score = Column(Float, nullable=True)
+    quality_level = Column(String(20), nullable=True)
+    column_mapping = Column(JSONB, nullable=True)
+    column_stats = Column(JSONB, nullable=True)
+    cleaned_path = Column(Text, nullable=True)
+    preview_path = Column(Text, nullable=True)
+    processing_duration_seconds = Column(Float, nullable=True)
+    last_processed_at = Column(DateTime, nullable=True)
     
     # Relationships
     user = relationship("User", back_populates="data_sources")

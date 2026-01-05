@@ -100,6 +100,12 @@ class Settings(BaseSettings):
     # Logging
     LOG_LEVEL: str = "INFO"
     
+    # Data Pipeline Settings
+    STORAGE_PATH: str = "/app/storage"
+    USE_PIPELINE_BY_DEFAULT: bool = True
+    PREVIEW_ROW_LIMIT: int = 1000
+    MIN_QUALITY_SCORE: float = 60.0
+    WARN_QUALITY_SCORE: float = 80.0
     
     class Config:
         env_file = ".env"

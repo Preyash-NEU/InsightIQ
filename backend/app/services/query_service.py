@@ -1,3 +1,12 @@
+"""
+COMPLETE UPDATED query_service.py
+WITH pipeline integration
+
+CHANGES MARKED:
+# CHANGED: <description>
+# NEW: <description>
+"""
+
 import logging
 logger = logging.getLogger(__name__)
 
@@ -157,13 +166,7 @@ class QueryService:
         """
         Process a natural language query.
         
-        Args:
-            db: Database session
-            user: Current user
-            query_data: Query data with natural language text and data source ID
-            
-        Returns:
-            Query object with results
+        UPDATED: Now uses cleaned pipeline data for accurate results
         """
         
         logger.info(f"User {user.id} executing query: {query_data.query_text}")
@@ -173,7 +176,7 @@ class QueryService:
             db, user, query_data.data_source_id
         )
         
-        # NEW: Check cache first
+        # Check cache first
         cache_key = QueryService._generate_cache_key(
             data_source.id, 
             query_data.query_text
@@ -194,30 +197,24 @@ class QueryService:
                 is_saved=False,
                 created_at=datetime.fromisoformat(cached_result["created_at"])
             )
-            # Note: This is a cached result, not saved to DB
             return cached_query
         
-        logger.info(
-            f"Query executed successfully in {execution_time:.2f}ms - "
-            f"User: {user.id}, DataSource: {data_source.id}"
-        )
-        
-        if data_source.type != "csv":
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Natural language queries only supported for CSV files currently"
-            )
-        
-        if not data_source.file_path or not os.path.exists(data_source.file_path):
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Data file not found"
-            )
-        
-        # Load the data
+        # CHANGED: Load data using pipeline (cleaned Parquet if available)
         try:
-            df = pd.read_csv(data_source.file_path)
+            df = DataSourceService.get_data_for_query(db, user, query_data.data_source_id)
+            logger.info(f"✅ Loaded data: {len(df)} rows, {len(df.columns)} columns")
+            
+            # Log data quality
+            if data_source.quality_score:
+                logger.info(f"📊 Quality: {data_source.quality_score} ({data_source.quality_level})")
+            
+            if data_source.cleaned_path:
+                logger.info(f"⚡ Using cleaned Parquet (fast)")
+            else:
+                logger.info(f"📂 Using original file")
+                
         except Exception as e:
+            logger.error(f"❌ Failed to load data: {str(e)}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Error loading data: {str(e)}"
@@ -241,13 +238,11 @@ class QueryService:
                 detail=f"Error interpreting query: {str(e)}"
             )
         
-        # Execute the generated code
+        # Execute the pandas code
         try:
             result = QueryService.execute_pandas_code(df, pandas_code)
-            execution_time = (datetime.now() - start_time).total_seconds() * 1000  # Convert to ms
+            execution_time = (datetime.now() - start_time).total_seconds() * 1000
             
-        except HTTPException:
-            raise
         except Exception as e:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -256,6 +251,22 @@ class QueryService:
         
         # Serialize the result
         serialized_result = QueryService.serialize_result(result)
+        
+        # NEW: Add quality and transformation info
+        if data_source.quality_score:
+            serialized_result['data_quality'] = {
+                'score': data_source.quality_score,
+                'level': data_source.quality_level
+            }
+        
+        if data_source.column_mapping:
+            transformations = [
+                {"original": orig, "normalized": norm}
+                for orig, norm in data_source.column_mapping.items()
+                if orig != norm
+            ]
+            if transformations:
+                serialized_result['column_transformations'] = transformations
         
         # Generate visualization suggestion
         viz_config = ai_service.suggest_visualization(result, query_data.query_text)
@@ -285,17 +296,22 @@ class QueryService:
         db.add(visualization)
         db.commit()
         
-        # NEW: Cache the result
+        # Cache the result
         cache_data = {
             "id": str(new_query.id),
             "result_data": serialized_result,
             "execution_time_ms": int(execution_time),
             "created_at": new_query.created_at.isoformat()
         }
-        QueryService._set_cached_result(cache_key, cache_data, ttl=300)  # 5 min cache
+        QueryService._set_cached_result(cache_key, cache_data, ttl=300)
         
         # Add visualization to query response
         new_query.visualizations = [visualization]
+        
+        logger.info(
+            f"Query executed successfully in {execution_time:.2f}ms - "
+            f"User: {user.id}, DataSource: {data_source.id}"
+        )
         
         return new_query
     
@@ -308,29 +324,19 @@ class QueryService:
         """
         Execute pandas code directly (for advanced users).
         
-        Args:
-            db: Database session
-            user: Current user
-            query_data: Query with pandas code
-            
-        Returns:
-            Query object with results
+        UPDATED: Now uses cleaned pipeline data
         """
         # Get data source
         data_source = DataSourceService.get_data_source(
             db, user, query_data.data_source_id
         )
         
-        if not data_source.file_path or not os.path.exists(data_source.file_path):
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Data file not found"
-            )
-        
-        # Load the data
+        # CHANGED: Load data using pipeline (cleaned Parquet if available)
         try:
-            df = pd.read_csv(data_source.file_path)
+            df = DataSourceService.get_data_for_query(db, user, query_data.data_source_id)
+            logger.info(f"✅ Loaded data for direct query: {len(df)} rows")
         except Exception as e:
+            logger.error(f"❌ Failed to load data: {str(e)}")
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Error loading data: {str(e)}"
@@ -374,24 +380,7 @@ class QueryService:
         sort_by: str = "created_at",
         sort_order: str = "desc"
     ) -> List[Query]:
-        """
-        Get queries with advanced filtering and sorting.
-        
-        Args:
-            db: Database session
-            user: Current user
-            skip: Pagination offset
-            limit: Maximum results
-            data_source_id: Filter by data source
-            saved_only: Only saved queries
-            query_type: Filter by query type
-            search: Search in query text
-            sort_by: Field to sort by
-            sort_order: asc or desc
-            
-        Returns:
-            List of queries matching filters
-        """
+        """Get queries with advanced filtering and sorting."""
         # Start with base query
         query = db.query(Query).filter(Query.user_id == user.id)
         

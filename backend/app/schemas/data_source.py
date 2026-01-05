@@ -31,6 +31,17 @@ class DataSource(DataSourceBase):
     updated_at: datetime
     last_synced_at: Optional[datetime] = None
     
+     # ADD THESE 9 FIELDS:
+    processing_report: Optional[Dict[str, Any]] = None
+    quality_score: Optional[float] = None
+    quality_level: Optional[str] = None
+    column_mapping: Optional[Dict[str, str]] = None
+    column_stats: Optional[Dict[str, Any]] = None
+    cleaned_path: Optional[str] = None
+    preview_path: Optional[str] = None
+    processing_duration_seconds: Optional[float] = None
+    last_processed_at: Optional[datetime] = None
+    
     class Config:
         from_attributes = True
 
