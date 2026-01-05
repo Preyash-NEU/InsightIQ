@@ -299,11 +299,11 @@ const DataSources = () => {
                     </p>
                     
                     {/* Quality Progress Bar */}
-                      {source.quality_score && (
+                      {/* {source.quality_score && (
                           <div className="mb-4">
                             <QualityProgressBar score={source.quality_score} />
                           </div>
-                        )}
+                        )} */}
 
                     {/* Stats */} 
                     <div className="pb-4 mb-4 space-y-2 text-sm border-b text-slate-400 border-slate-700/50">
