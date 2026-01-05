@@ -8,6 +8,9 @@ import {
   TableInfo,
   DataPreview,
   ExcelSheets,
+  QualityReport,       // NEW
+  CleaningReport,      // NEW
+  ReprocessResponse,   // NEW
 } from '../types/dataSource';
 
 export class DataSourceService {
@@ -108,6 +111,44 @@ export class DataSourceService {
     return response.data;
   }
 
+  // ========================================
+  // NEW: Pipeline Quality Endpoints
+  // ========================================
+
+  /**
+   * Get data quality report
+   */
+  static async getQualityReport(id: string): Promise<QualityReport> {
+    const response = await apiClient.get<QualityReport>(
+      `/data-sources/${id}/quality`
+    );
+    return response.data;
+  }
+
+  /**
+   * Get detailed cleaning report
+   */
+  static async getCleaningReport(id: string): Promise<CleaningReport> {
+    const response = await apiClient.get<CleaningReport>(
+      `/data-sources/${id}/cleaning-report`
+    );
+    return response.data;
+  }
+
+  /**
+   * Reprocess data source through pipeline
+   */
+  static async reprocessDataSource(id: string): Promise<ReprocessResponse> {
+    const response = await apiClient.post<ReprocessResponse>(
+      `/data-sources/${id}/reprocess`
+    );
+    return response.data;
+  }
+
+  // ========================================
+  // Database Connection Methods (unchanged)
+  // ========================================
+
   /**
    * Test database connection
    */
@@ -180,6 +221,10 @@ export class DataSourceService {
     return response.data;
   }
 
+  // ========================================
+  // Helper/Utility Methods
+  // ========================================
+
   /**
    * Format file size for display
    */
@@ -238,6 +283,98 @@ export class DataSourceService {
     };
 
     return colorMap[type] || colorMap.default;
+  }
+
+  // ========================================
+  // NEW: Quality Helper Methods
+  // ========================================
+
+  /**
+   * Get quality badge color based on score
+   */
+  static getQualityColor(score: number | null | undefined): {
+    bg: string;
+    text: string;
+    border: string;
+    label: string;
+  } {
+    if (!score && score !== 0) {
+      return {
+        bg: 'bg-slate-500/10',
+        text: 'text-slate-400',
+        border: 'border-slate-500/20',
+        label: 'Unknown',
+      };
+    }
+
+    if (score >= 90) {
+      return {
+        bg: 'bg-emerald-500/10',
+        text: 'text-emerald-400',
+        border: 'border-emerald-500/20',
+        label: 'Excellent',
+      };
+    } else if (score >= 80) {
+      return {
+        bg: 'bg-green-500/10',
+        text: 'text-green-400',
+        border: 'border-green-500/20',
+        label: 'Good',
+      };
+    } else if (score >= 70) {
+      return {
+        bg: 'bg-yellow-500/10',
+        text: 'text-yellow-400',
+        border: 'border-yellow-500/20',
+        label: 'Fair',
+      };
+    } else if (score >= 60) {
+      return {
+        bg: 'bg-orange-500/10',
+        text: 'text-orange-400',
+        border: 'border-orange-500/20',
+        label: 'Poor',
+      };
+    } else {
+      return {
+        bg: 'bg-red-500/10',
+        text: 'text-red-400',
+        border: 'border-red-500/20',
+        label: 'Critical',
+      };
+    }
+  }
+
+  /**
+   * Get quality level emoji
+   */
+  static getQualityEmoji(level: string | null | undefined): string {
+    const emojiMap: Record<string, string> = {
+      excellent: '✅',
+      good: '👍',
+      fair: '⚠️',
+      poor: '⚠️',
+      critical: '❌',
+    };
+
+    return emojiMap[level || ''] || '❓';
+  }
+
+  /**
+   * Format processing duration
+   */
+  static formatProcessingDuration(seconds: number | null | undefined): string {
+    if (!seconds) return '-';
+    
+    if (seconds < 1) {
+      return `${(seconds * 1000).toFixed(0)}ms`;
+    } else if (seconds < 60) {
+      return `${seconds.toFixed(1)}s`;
+    } else {
+      const minutes = Math.floor(seconds / 60);
+      const remainingSeconds = Math.floor(seconds % 60);
+      return `${minutes}m ${remainingSeconds}s`;
+    }
   }
 }
 
