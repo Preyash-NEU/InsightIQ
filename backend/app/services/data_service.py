@@ -472,3 +472,27 @@ class DataSourceService:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Failed to read Excel file: {str(e)}"
             )
+    
+    @staticmethod
+    def get_quality_report(db: Session, user: User, data_source_id: UUID) -> Optional[Dict]:
+        """
+        Retrieve the column-level quality report for a data source.
+        Extracts from processing_report JSONB where pipeline stored it.
+        Returns None gracefully if not available (e.g. pre-pipeline sources).
+        """
+        data_source = DataSourceService.get_data_source(db, user, data_source_id)
+    
+        if not data_source.processing_report:
+            return None
+    
+        try:
+            # Quality report is nested inside the pipeline report
+            quality_report = (
+                data_source.processing_report
+                .get('layers', {})
+                .get('layer6', {})
+                .get('quality_report')
+            )
+            return quality_report  # returns None if path doesn't exist
+        except Exception:
+            return None

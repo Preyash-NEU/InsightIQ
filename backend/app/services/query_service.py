@@ -223,20 +223,26 @@ class QueryService:
         # Get AI interpretation
         ai_service = AIService()
         start_time = datetime.now()
+        quality_report = None
         
         try:
+            quality_report = DataSourceService.get_quality_report(
+            db, user, query_data.data_source_id
+            )
+    
             ai_response = ai_service.interpret_natural_language_query(
                 query_text=query_data.query_text,
-                columns_info=data_source.columns_info
+                columns_info=data_source.columns_info,   # ← comma added
+                quality_report=quality_report
             )
-            
+    
             pandas_code = ai_response["pandas_code"]
-            
+    
         except Exception as e:
             raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Error interpreting query: {str(e)}"
-            )
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error interpreting query: {str(e)}"
+        )
         
         # Execute the pandas code
         try:

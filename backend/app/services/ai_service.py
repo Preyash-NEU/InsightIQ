@@ -14,7 +14,8 @@ class AIService:
         self,
         query_text: str,
         columns_info: list,
-        sample_data: Optional[Dict] = None
+        sample_data: Optional[Dict] = None,
+        quality_report: Optional[Dict] = None
     ) -> Dict[str, Any]:
         """
         Interpret a natural language query and generate pandas code.
@@ -34,6 +35,8 @@ class AIService:
             for col in columns_info
         ])
         
+        quality_context = self._build_quality_context(columns_info, quality_report)
+        
         # Create the prompt for GPT-4
         prompt = f"""You are a data analysis expert. Given a dataset with the following columns:
 
@@ -51,14 +54,7 @@ Generate Python pandas code to answer this query. Follow these rules:
 7. If the query asks for filtering or listing, return a DataFrame
 8. Always ensure the result is JSON-serializable
 
-Respond with ONLY valid Python code, no explanations or markdown.
-
-Example format:
-# Filter and calculate
-filtered_df = df[df['column'] > value]
-result = filtered_df['column'].sum()
-
-Your code:"""
+Respond with ONLY valid Python code, no explanations or markdown. """
 
         try:
             # Call OpenAI API with new syntax
@@ -95,6 +91,67 @@ Your code:"""
             
         except Exception as e:
             raise Exception(f"Error calling OpenAI API: {str(e)}")
+        
+    def _build_quality_context(
+        self,
+        columns_info: list,
+        quality_report: Optional[Dict]
+    ) -> str:
+        """
+        Build a structured quality context block for the LLM prompt.
+        
+        Only surfaces columns with meaningful quality signals —
+        high-quality columns get a brief note, problem columns get
+        specific warnings. Returns empty string when no report is
+        available, making the system degrade gracefully to baseline
+        quality-agnostic behavior.
+        """
+        if not quality_report or 'columns' not in quality_report:
+            return ""   # graceful degradation → baseline behavior
+        
+        lines = [
+            "--- Data Quality Report ---",
+            "Use these signals to qualify your analysis:\n"
+        ]
+        
+        has_issues = False
+        col_names = [col.get('name', '') for col in columns_info]
+        
+        for col_name in col_names:
+            col_quality = quality_report['columns'].get(col_name)
+            if not col_quality:
+                continue
+            
+            score        = col_quality.get('quality_score', 100)
+            level        = col_quality.get('quality_level', 'excellent')
+            completeness = col_quality.get('completeness', 100)
+            type_rel     = col_quality.get('type_reliability', 100)
+            issues       = col_quality.get('issues', [])
+            
+            if score >= 90 and not issues:
+                # High quality — brief, unobtrusive note
+                lines.append(f" {col_name}: HIGH quality ({score:.0f}/100)")
+            else:
+                # Problem column — full detail
+                has_issues = True
+                issue_str = "; ".join(issues) if issues else "unspecified"
+                lines.append(
+                    f"  {col_name}: {level.upper()} quality ({score:.0f}/100)"
+                    f" | completeness: {completeness:.0f}%"
+                    f" | type reliability: {type_rel:.0f}%"
+                    f" | issues: {issue_str}"
+                )
+        
+        if has_issues:
+            lines.append(
+                "\n⚠ IMPORTANT: Columns marked with ⚠ have reliability "
+                "concerns. For aggregations over these columns, add a "
+                "comment in your code noting the quality limitation. "
+                "Do not treat low-quality columns as fully reliable."
+            )
+        
+        lines.append("--- End Quality Report ---\n")
+        return "\n".join(lines)
     
     def suggest_visualization(self, result_data: Any, query_text: str) -> Dict[str, Any]:
         """
