@@ -51,6 +51,7 @@ class DataQualityLayer:
             
             quality_report['columns'][col] = {
                 'completeness': metrics['completeness'],
+                'type_reliability':  metrics['type_reliability'],
                 'uniqueness': metrics['uniqueness'],
                 'consistency': metrics['consistency'],
                 'validity': metrics['validity'],
@@ -107,20 +108,31 @@ class DataQualityLayer:
         
         # 3. Consistency (pattern matching for specific types)
         detected_type = type_info.get('detected_type', 'string')
-        consistency = self._check_consistency(series, detected_type)
+        consistency = self._check_consistency(series, detected_type, type_info=type_info)
         metrics['consistency'] = consistency
         
         if consistency < 80:
             issues.append(f"Low consistency: {consistency:.1f}%")
         
-        # 4. Validity (type-specific checks)
+        # 4. Type Reliability (from Layer 4 conversion success rate)
+        type_reliability = type_info.get('conversion_success_rate', 100.0)
+        metrics['type_reliability'] = round(type_reliability, 2)
+    
+        if type_reliability < 80:
+            issues.append(
+                f"Low type reliability: {type_reliability:.1f}% "
+                f"of values parsed successfully as "
+                f"{type_info.get('detected_type', 'unknown')}"
+            )
+        
+        # 5. Validity (type-specific checks)
         validity = self._check_validity(series, detected_type)
         metrics['validity'] = validity
         
         if validity < 90:
             issues.append(f"Validity issues: {validity:.1f}%")
         
-        # 5. Check if data was heavily cleaned
+        # 6. Check if data was heavily cleaned
         if cleaning_info:
             imputed_pct = (cleaning_info.get('imputed_nulls', 0) / total_rows * 100) if total_rows > 0 else 0
             if imputed_pct > 10:
@@ -130,12 +142,12 @@ class DataQualityLayer:
             if outliers_pct > 5:
                 issues.append(f"{outliers_pct:.1f}% outliers handled")
         
-        # 6. Overall quality score
+        # 7. Overall quality score
         score = (
-            completeness * 0.40 +
-            consistency * 0.30 +
-            validity * 0.20 +
-            min(uniqueness, 100) * 0.10
+            completeness * 0.35 +
+            consistency * 0.25 +
+            type_reliability * 0.25 +   # ← replaces old validity weight
+            validity * 0.15      # ← reduced from 0.20
         )
         
         metrics['score'] = round(score, 2)
@@ -144,26 +156,94 @@ class DataQualityLayer:
         
         return metrics
     
-    def _check_consistency(self, series: pd.Series, detected_type: str) -> float:
-        """Check consistency based on data type"""
+    def _check_consistency(self, series: pd.Series, detected_type: str, 
+                        type_info: Dict = None) -> float:
+        """
+        Check consistency based on data type.
+    
+        - numeric/currency: uses type conversion success rate from Layer 4
+        - string/categorical: measures format regularity via dominant pattern
+        - date/datetime: uses conversion success rate from Layer 4
+        - email/url: regex pattern match rate
+        - boolean: always high post-Layer 4, returns 100
+        """
         non_null = series.dropna()
-        
         if len(non_null) == 0:
-            return 100
-        
+            return 100.0
+
+        # email and url: regex-based (your existing logic, keep it)
         if detected_type == 'email':
             email_pattern = r'^[\w\.-]+@[\w\.-]+\.\w+$'
-            valid_count = sum(1 for val in non_null if re.match(email_pattern, str(val)))
-            return (valid_count / len(non_null) * 100)
-        
+            valid_count = sum(1 for val in non_null 
+                            if re.match(email_pattern, str(val)))
+            return round((valid_count / len(non_null)) * 100, 2)
+
         elif detected_type == 'url':
             url_pattern = r'^https?://'
-            valid_count = sum(1 for val in non_null if re.match(url_pattern, str(val)))
-            return (valid_count / len(non_null) * 100)
-        
+            valid_count = sum(1 for val in non_null 
+                             if re.match(url_pattern, str(val)))
+            return round((valid_count / len(non_null)) * 100, 2)
+
+        # numeric types: use Layer 4 conversion success rate if available
+        elif detected_type in ['integer', 'float', 'currency', 'percentage']:
+            if type_info and 'conversion_success_rate' in type_info:
+                return round(type_info['conversion_success_rate'], 2)
+            # Fallback: check what fraction are finite numbers
+            try:
+                numeric = pd.to_numeric(non_null, errors='coerce')
+                valid = np.isfinite(numeric.dropna())
+                return round((valid.sum() / len(non_null)) * 100, 2)
+            except:
+                return 100.0
+
+        # date types: use Layer 4 conversion success rate if available  
+        elif detected_type in ['date', 'datetime']:
+            if type_info and 'conversion_success_rate' in type_info:
+                return round(type_info['conversion_success_rate'], 2)
+            try:
+                parsed = pd.to_datetime(non_null, errors='coerce')
+                return round((parsed.notna().sum() / len(non_null)) * 100, 2)
+            except:
+                return 100.0
+
+        # string/categorical: measure format regularity
+        elif detected_type == 'string':
+            return self._check_string_consistency(non_null)
+
+        # boolean: high by definition after Layer 4 normalization
+        elif detected_type == 'boolean':
+            return 100.0
+
         else:
-            # For other types, assume consistent if successfully typed
-            return 100
+            return 100.0
+    
+    def _check_string_consistency(self, series: pd.Series) -> float:
+        """
+        Measure string format regularity.
+        Checks if values follow a dominant pattern in terms of
+        character composition (all alpha, all numeric, mixed, etc.)
+        """
+        if len(series) == 0:
+            return 100.0
+
+        def get_pattern(val: str) -> str:
+            """Reduce a string to its character-class pattern."""
+            s = str(val).strip()
+            if not s or s.lower() in ['nan', 'none', 'null']:
+                return 'empty'
+            if re.match(r'^\d+$', s):
+                return 'numeric'
+            if re.match(r'^[a-zA-Z]+$', s):
+                return 'alpha'
+            if re.match(r'^[a-zA-Z0-9]+$', s):
+                return 'alphanumeric'
+            if re.match(r'^[a-zA-Z\s]+$', s):
+                return 'alpha_space'
+            return 'mixed'
+
+        patterns = series.apply(get_pattern)
+        dominant_pattern_count = patterns.value_counts().iloc[0]
+        return round((dominant_pattern_count / len(series)) * 100, 2)
     
     def _check_validity(self, series: pd.Series, detected_type: str) -> float:
         """Check validity based on data type"""

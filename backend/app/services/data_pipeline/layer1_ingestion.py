@@ -150,12 +150,32 @@ class IngestionLayer:
         return hashlib.sha256(data_string.encode()).hexdigest()
     
     def _store_raw(self, df: pd.DataFrame, data_hash: str) -> Path:
-        """Store raw copy as Parquet"""
+        """
+        Store raw copy as Parquet
+        
+        ROBUST FIX: Converts ALL object columns to string for Parquet compatibility
+        This is safe because Layer 4 will do proper type detection later
+        """
         raw_dir = self.storage_path / 'raw'
         raw_dir.mkdir(parents=True, exist_ok=True)
         
         raw_path = raw_dir / f"{data_hash}_raw.parquet"
-        df.to_parquet(raw_path, index=False, engine='pyarrow')
+        
+        # Create a copy to avoid modifying original DataFrame
+        df_copy = df.copy()
+        
+        # SIMPLE FIX: Convert ALL object dtype columns to string
+        # This ensures Parquet compatibility regardless of mixed types
+        # Layer 4 will handle proper type detection from the string data
+        for col in df_copy.columns:
+            if df_copy[col].dtype == 'object':
+                # Convert to string, handling NaN/NaT properly
+                df_copy[col] = df_copy[col].astype(str)
+                # Replace string 'nan' and 'NaT' with None for cleaner storage
+                df_copy[col] = df_copy[col].replace(['nan', 'NaT', 'None'], None)
+        
+        # Save to Parquet (now all object columns are strings, no mixed types)
+        df_copy.to_parquet(raw_path, index=False, engine='pyarrow')
         
         logger.info(f"Stored raw data at: {raw_path}")
         return raw_path
